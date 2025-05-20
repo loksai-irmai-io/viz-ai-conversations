@@ -1,6 +1,42 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
+// Add TypeScript declarations for the Web Speech API
+interface SpeechRecognitionEvent extends Event {
+  resultIndex: number;
+  results: {
+    [key: number]: {
+      [key: number]: {
+        transcript: string;
+        confidence: number;
+      };
+    };
+  };
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start: () => void;
+  stop: () => void;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onerror: (event: SpeechRecognitionErrorEvent) => void;
+  onend: () => void;
+}
+
+// Extend the window interface
+declare global {
+  interface Window {
+    SpeechRecognition?: new () => SpeechRecognition;
+    webkitSpeechRecognition?: new () => SpeechRecognition;
+  }
+}
+
 interface SpeechRecognitionHook {
   transcript: string;
   isListening: boolean;
@@ -13,7 +49,7 @@ const useSpeechRecognition = (): SpeechRecognitionHook => {
   const [transcript, setTranscript] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [recognition, setRecognition] = useState<any | null>(null);
+  const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
 
   // Initialize speech recognition
   useEffect(() => {
@@ -27,13 +63,13 @@ const useSpeechRecognition = (): SpeechRecognitionHook => {
         recognitionInstance.interimResults = true;
         recognitionInstance.lang = 'en-US';
         
-        recognitionInstance.onresult = (event: any) => {
+        recognitionInstance.onresult = (event: SpeechRecognitionEvent) => {
           const current = event.resultIndex;
           const transcript = event.results[current][0].transcript;
           setTranscript(transcript);
         };
         
-        recognitionInstance.onerror = (event: any) => {
+        recognitionInstance.onerror = (event: SpeechRecognitionErrorEvent) => {
           setError(`Speech recognition error: ${event.error}`);
           setIsListening(false);
         };
