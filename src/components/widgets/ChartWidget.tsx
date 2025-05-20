@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Widget } from '@/data/mock-data';
 import { 
@@ -125,14 +124,12 @@ const ChartWidget: React.FC<ChartWidgetProps> = ({ widget }) => {
             dataKey="x" 
             name="Project" 
             allowDuplicatedCategory={false} 
-            categories={uniqueX} 
           />
           <YAxis 
             type="category" 
             dataKey="y" 
             name="Week" 
             allowDuplicatedCategory={false}
-            categories={uniqueY}
           />
           <ZAxis 
             type="number"
@@ -206,7 +203,6 @@ const ChartWidget: React.FC<ChartWidgetProps> = ({ widget }) => {
           endAngle={0}
         >
           <RadialBar
-            minAngle={15}
             background
             clockWise
             dataKey="value"
@@ -239,7 +235,8 @@ const ChartWidget: React.FC<ChartWidgetProps> = ({ widget }) => {
           aspectRatio={4/3}
           stroke="#fff"
           fill="#8884d8"
-          content={(props: any) => {
+        >
+          {(props) => {
             const { depth, x, y, width, height, index, name, value } = props;
             
             return (
@@ -281,7 +278,7 @@ const ChartWidget: React.FC<ChartWidgetProps> = ({ widget }) => {
               </g>
             );
           }}
-        />
+        </Treemap>
       </ResponsiveContainer>
     );
   };
