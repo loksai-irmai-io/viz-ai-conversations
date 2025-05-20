@@ -204,7 +204,6 @@ const ChartWidget: React.FC<ChartWidgetProps> = ({ widget }) => {
         >
           <RadialBar
             background
-            clockWise
             dataKey="value"
             fill={fillColor}
           />
