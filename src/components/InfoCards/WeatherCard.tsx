@@ -4,14 +4,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { weatherData } from '@/data/mock-data';
 import { fetchWeather } from '@/services/api';
 
-const WeatherCard: React.FC = () => {
+interface WeatherCardProps {
+  location?: string;
+}
+
+const WeatherCard: React.FC<WeatherCardProps> = ({ location }) => {
   const [weather, setWeather] = useState(weatherData);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const getWeatherData = async () => {
       setIsLoading(true);
-      const response = await fetchWeather();
+      const response = await fetchWeather(location);
       if (response.data) {
         setWeather(response.data);
       }
@@ -19,7 +23,7 @@ const WeatherCard: React.FC = () => {
     };
 
     getWeatherData();
-  }, []);
+  }, [location]);
 
   return (
     <Card>

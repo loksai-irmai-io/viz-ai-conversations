@@ -8,9 +8,10 @@ export interface ApiResponse<T> {
   error?: string;
 }
 
-export async function fetchWeather(): Promise<ApiResponse<any>> {
+export async function fetchWeather(location: string = ''): Promise<ApiResponse<any>> {
   try {
-    const response = await fetch(`${API_BASE_URL}/weather`);
+    const queryParams = location ? `?location=${encodeURIComponent(location)}` : '';
+    const response = await fetch(`${API_BASE_URL}/weather${queryParams}`);
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);
     }
@@ -22,9 +23,10 @@ export async function fetchWeather(): Promise<ApiResponse<any>> {
   }
 }
 
-export async function fetchNews(): Promise<ApiResponse<any>> {
+export async function fetchNews(category: string = ''): Promise<ApiResponse<any>> {
   try {
-    const response = await fetch(`${API_BASE_URL}/news`);
+    const queryParams = category ? `?category=${encodeURIComponent(category)}` : '';
+    const response = await fetch(`${API_BASE_URL}/news${queryParams}`);
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);
     }

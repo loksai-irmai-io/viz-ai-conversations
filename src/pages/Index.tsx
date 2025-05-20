@@ -18,6 +18,7 @@ const Index = () => {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isBackendAvailable, setIsBackendAvailable] = useState<boolean | null>(null);
   
   // Get the active session or create a new one
   const activeSession = sessions.find((s) => s.id === activeSessionId) || {
@@ -26,6 +27,22 @@ const Index = () => {
     lastUpdated: new Date(),
     messages: []
   };
+  
+  // Check if backend is available on initial load
+  useEffect(() => {
+    const checkBackend = async () => {
+      try {
+        // Try to make a simple query to the backend
+        const response = await processQuery("ping");
+        setIsBackendAvailable(!!response.data);
+      } catch (error) {
+        console.error("Backend connection failed:", error);
+        setIsBackendAvailable(false);
+      }
+    };
+    
+    checkBackend();
+  }, []);
   
   // Load sessions from localStorage on initial render
   useEffect(() => {
@@ -112,72 +129,29 @@ const Index = () => {
     setIsLoading(true);
     
     try {
-      // Try to get a response from the backend first
-      const apiResponse = await processQuery(message);
-      
       let responseText: string;
       let matchedWidgets: any[] = [];
       
-      if (apiResponse.data) {
-        // Use the backend response if available
-        responseText = apiResponse.data.text;
-        matchedWidgets = apiResponse.data.widgets;
-      } else {
-        // Fall back to client-side processing
-        // Wait for a short delay to simulate processing
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Try to get a response from the backend first if it's available
+      if (isBackendAvailable) {
+        const apiResponse = await processQuery(message);
         
-        // Find widgets based on the query
-        matchedWidgets = findWidgetsByQuery(message);
-        
-        // Generate response text based on matched widgets
-        if (matchedWidgets.length > 0) {
-          responseText = `Here are the visualizations related to your query: "${message}"`;
+        if (apiResponse.data) {
+          // Use the backend response
+          responseText = apiResponse.data.text;
+          matchedWidgets = apiResponse.data.widgets || [];
+          console.log("Backend response:", apiResponse.data);
         } else {
-          // Check for specific keywords for info cards
-          if (message.toLowerCase().includes('weather')) {
-            responseText = "Here's the current weather information:";
-            // Add weather widget
-            matchedWidgets.push({
-              id: 'weather-card',
-              type: 'weather-card',
-              title: 'Current Weather',
-              description: 'Current weather conditions',
-              module: 'outlier-analysis',
-              image: '',
-              keywords: ['weather'],
-              metadata: {}
-            });
-          } else if (message.toLowerCase().includes('news')) {
-            responseText = "Here are the latest news headlines:";
-            // Add news widget
-            matchedWidgets.push({
-              id: 'news-card',
-              type: 'news-card',
-              title: 'Latest News',
-              description: 'Recent news headlines',
-              module: 'outlier-analysis',
-              image: '',
-              keywords: ['news'],
-              metadata: {}
-            });
-          } else if (message.toLowerCase().includes('time')) {
-            responseText = "Here's the current time:";
-            // Add time widget
-            matchedWidgets.push({
-              id: 'time-card',
-              type: 'time-card',
-              title: 'Current Time',
-              description: 'Current date and time',
-              module: 'outlier-analysis',
-              image: '',
-              keywords: ['time'],
-              metadata: {}
-            });
-          } else {
-            responseText = "I couldn't find specific visualizations for your query. Try asking about failure patterns, process execution, control effectiveness, risk concentrations, or other analytics topics.";
-          }
+          // Fall back to client-side processing
+          const fallbackResponse = await processFallbackQuery(message);
+          responseText = fallbackResponse.text;
+          matchedWidgets = fallbackResponse.widgets;
         }
+      } else {
+        // Use client-side processing if backend isn't available
+        const fallbackResponse = await processFallbackQuery(message);
+        responseText = fallbackResponse.text;
+        matchedWidgets = fallbackResponse.widgets;
       }
       
       // Create AI response message
@@ -210,6 +184,90 @@ const Index = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+  
+  // Fallback query processing for when the backend is unavailable
+  const processFallbackQuery = async (query: string): Promise<{text: string, widgets: any[]}> => {
+    // Wait for a short delay to simulate processing
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    
+    // Find widgets based on the query
+    const matchedWidgets = findWidgetsByQuery(query);
+    
+    // Generate response text based on matched widgets
+    let responseText: string;
+    
+    if (matchedWidgets.length > 0) {
+      responseText = `Here are the visualizations related to your query: "${query}"`;
+    } else {
+      // Check for specific keywords for info cards
+      if (query.toLowerCase().includes('weather')) {
+        responseText = "Here's the current weather information:";
+        // Extract location if provided
+        const words = query.split(' ');
+        let location = "New York";  // Default
+        
+        for (let i = 0; i < words.length; i++) {
+          if (words[i].toLowerCase() === 'in' && i < words.length - 1) {
+            location = words[i+1];
+            break;
+          }
+        }
+        
+        // Add weather widget
+        matchedWidgets.push({
+          id: 'weather-card',
+          type: 'weather-card',
+          title: 'Current Weather',
+          description: 'Current weather conditions',
+          module: 'outlier-analysis',
+          image: '',
+          keywords: ['weather'],
+          metadata: { location }
+        });
+      } else if (query.toLowerCase().includes('news')) {
+        responseText = "Here are the latest news headlines:";
+        // Extract category if provided
+        const newsCategories = ["business", "entertainment", "general", "health", "science", "sports", "technology"];
+        let category = "technology";  // Default
+        
+        for (const cat of newsCategories) {
+          if (query.toLowerCase().includes(cat)) {
+            category = cat;
+            break;
+          }
+        }
+        
+        // Add news widget
+        matchedWidgets.push({
+          id: 'news-card',
+          type: 'news-card',
+          title: 'Latest News',
+          description: 'Recent news headlines',
+          module: 'outlier-analysis',
+          image: '',
+          keywords: ['news'],
+          metadata: { category }
+        });
+      } else if (query.toLowerCase().includes('time')) {
+        responseText = "Here's the current time:";
+        // Add time widget
+        matchedWidgets.push({
+          id: 'time-card',
+          type: 'time-card',
+          title: 'Current Time',
+          description: 'Current date and time',
+          module: 'outlier-analysis',
+          image: '',
+          keywords: ['time'],
+          metadata: {}
+        });
+      } else {
+        responseText = "I couldn't find specific visualizations for your query. Try asking about specific chart types like 'Show me a bar chart', 'Display a heatmap', or 'Create a pie chart'. You can also ask for information like weather, news, or the current time.";
+      }
+    }
+    
+    return { text: responseText, widgets: matchedWidgets };
   };
   
   return (

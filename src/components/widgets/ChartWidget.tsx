@@ -3,7 +3,9 @@ import React from 'react';
 import { Widget } from '@/data/mock-data';
 import { 
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  RadialBarChart, RadialBar, Treemap, ScatterChart, Scatter, ZAxis,
+  ComposedChart, Area
 } from 'recharts';
 import { cn } from '@/lib/utils';
 
@@ -89,6 +91,7 @@ const ChartWidget: React.FC<ChartWidgetProps> = ({ widget }) => {
             outerRadius={80}
             fill="#8884d8"
             dataKey="value"
+            innerRadius={type === 'donut-chart' ? 40 : 0} // Make it a donut if specified
           >
             {data.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -102,24 +105,367 @@ const ChartWidget: React.FC<ChartWidgetProps> = ({ widget }) => {
   };
 
   const renderHeatMap = () => {
-    // A simplified heatmap implementation
+    // Create a proper heatmap using a scatter chart with colored bubbles
+    const data = metadata.data;
+    
+    // Get unique x and y values for labels
+    const uniqueX = Array.from(new Set(data.map((d: any) => d.x)));
+    const uniqueY = Array.from(new Set(data.map((d: any) => d.y)));
+    
+    const maxValue = Math.max(...data.map((d: any) => d.value));
+    
     return (
-      <div className="grid grid-cols-3 gap-2 w-full h-64">
-        {metadata.data.map((item: any, index: number) => (
-          <div 
-            key={index}
-            className="flex items-center justify-center rounded p-2"
-            style={{ 
-              backgroundColor: `rgba(66, 135, 245, ${item.value / 100})`,
-              color: item.value > 50 ? 'white' : 'black'
+      <ResponsiveContainer width="100%" height={300}>
+        <ScatterChart
+          margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+        >
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis 
+            type="category" 
+            dataKey="x" 
+            name="Project" 
+            allowDuplicatedCategory={false} 
+            categories={uniqueX} 
+          />
+          <YAxis 
+            type="category" 
+            dataKey="y" 
+            name="Week" 
+            allowDuplicatedCategory={false}
+            categories={uniqueY}
+          />
+          <ZAxis 
+            type="number"
+            dataKey="value"
+            range={[0, 500]}
+            name="Value"
+          />
+          <Tooltip 
+            cursor={{ strokeDasharray: '3 3' }}
+            formatter={(value: any) => [`Value: ${value}`, 'Intensity']}
+          />
+          <Scatter 
+            name="Heat Map" 
+            data={data} 
+            fill="#8884d8"
+            shape={(props: any) => {
+              const { cx, cy, payload } = props;
+              const intensity = payload.value / maxValue;
+              return (
+                <rect
+                  x={cx - 20}
+                  y={cy - 20}
+                  width={40}
+                  height={40}
+                  fill={`rgba(66, 135, 245, ${intensity})`}
+                  style={{
+                    fillOpacity: 0.8,
+                  }}
+                />
+              );
             }}
+          />
+        </ScatterChart>
+      </ResponsiveContainer>
+    );
+  };
+
+  const renderGaugeChart = () => {
+    if (!metadata.value) return <div>No gauge data available</div>;
+    
+    const data = [
+      {
+        name: 'Value',
+        value: metadata.value,
+        fill: '#8884d8',
+      }
+    ];
+    
+    // Determine fill color based on thresholds
+    let fillColor = '#00C49F'; // Default green
+    
+    if (metadata.thresholds) {
+      for (let i = 0; i < metadata.thresholds.length; i++) {
+        if (metadata.value <= metadata.thresholds[i].value) {
+          fillColor = metadata.thresholds[i].color;
+          break;
+        }
+      }
+    }
+    
+    return (
+      <ResponsiveContainer width="100%" height={300}>
+        <RadialBarChart 
+          cx="50%" 
+          cy="50%" 
+          innerRadius="60%" 
+          outerRadius="100%" 
+          barSize={10} 
+          data={data} 
+          startAngle={180} 
+          endAngle={0}
+        >
+          <RadialBar
+            minAngle={15}
+            background
+            clockWise
+            dataKey="value"
+            fill={fillColor}
+          />
+          <text
+            x="50%"
+            y="50%"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            className="text-xl font-bold"
+            fill="#333"
           >
-            <div className="text-center">
-              <div className="font-medium">{item.x} / {item.y}</div>
-              <div className="text-sm">{item.value}%</div>
+            {metadata.value}%
+          </text>
+          <Tooltip />
+        </RadialBarChart>
+      </ResponsiveContainer>
+    );
+  };
+
+  const renderTreeMap = () => {
+    if (!metadata.data) return <div>No treemap data available</div>;
+    
+    return (
+      <ResponsiveContainer width="100%" height={300}>
+        <Treemap
+          data={metadata.data}
+          dataKey="value"
+          aspectRatio={4/3}
+          stroke="#fff"
+          fill="#8884d8"
+          content={(props: any) => {
+            const { depth, x, y, width, height, index, name, value } = props;
+            
+            return (
+              <g>
+                <rect
+                  x={x}
+                  y={y}
+                  width={width}
+                  height={height}
+                  style={{
+                    fill: COLORS[index % COLORS.length],
+                    stroke: '#fff',
+                    strokeWidth: 2 / (depth + 1e-10),
+                    strokeOpacity: 1 / (depth + 1e-10),
+                  }}
+                />
+                {(width > 50 && height > 30) ? (
+                  <text
+                    x={x + width / 2}
+                    y={y + height / 2}
+                    textAnchor="middle"
+                    fill="#fff"
+                    fontSize={14}
+                  >
+                    {name}
+                  </text>
+                ) : null}
+                {(width > 50 && height > 50) ? (
+                  <text
+                    x={x + width / 2}
+                    y={y + height / 2 + 15}
+                    textAnchor="middle"
+                    fill="#fff"
+                    fontSize={12}
+                  >
+                    {value}
+                  </text>
+                ) : null}
+              </g>
+            );
+          }}
+        />
+      </ResponsiveContainer>
+    );
+  };
+
+  const renderBulletChart = () => {
+    if (!metadata.data) return <div>No bullet chart data available</div>;
+    
+    return (
+      <div className="space-y-6">
+        {metadata.data.map((item: any, index: number) => (
+          <div key={index} className="space-y-1">
+            <div className="flex justify-between">
+              <span className="font-medium">{item.name}</span>
+              <span>Target: {item.target}</span>
+            </div>
+            <ResponsiveContainer width="100%" height={50}>
+              <ComposedChart
+                layout="vertical"
+                data={[item]}
+                margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" domain={[0, item.ranges[item.ranges.length - 1] * 1.2]} />
+                <YAxis dataKey="name" type="category" hide={true} />
+                <Tooltip />
+                
+                {/* The ranges/background bars */}
+                {item.ranges.map((range: any, i: number) => (
+                  <Bar 
+                    key={`range-${i}`}
+                    dataKey={() => range}
+                    barSize={20}
+                    fill={`rgba(0, 0, 0, ${0.2 - i * 0.05})`}
+                    stackId="stack"
+                  />
+                ))}
+                
+                {/* The actual value bar */}
+                <Bar
+                  dataKey="actual"
+                  barSize={8}
+                  fill={item.actual >= item.target ? '#00C49F' : '#FF8042'}
+                />
+                
+                {/* Target line */}
+                <Line
+                  dataKey="target"
+                  type="monotone"
+                  stroke="#ff7300"
+                  strokeWidth={2}
+                  dot={{ fill: '#ff7300', strokeWidth: 2 }}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const renderKPIWidget = () => {
+    if (!metadata.metrics) return <div>No KPI data available</div>;
+    
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {metadata.metrics.map((metric: any, index: number) => (
+          <div key={index} className="bg-white p-4 rounded-lg shadow-sm">
+            <div className="text-sm text-gray-500">{metric.name}</div>
+            <div className="text-xl font-bold">{metric.value}</div>
+            <div className={`text-xs ${metric.change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+              {metric.change >= 0 ? '+' : ''}{metric.change}%
+            </div>
+            {/* Sparkline */}
+            <div className="h-10 mt-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={metric.trend.map((value: number, i: number) => ({ index: i, value }))}>
+                  <Line 
+                    type="monotone" 
+                    dataKey="value" 
+                    stroke={metric.change >= 0 ? '#10b981' : '#ef4444'} 
+                    strokeWidth={2} 
+                    dot={false} 
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           </div>
         ))}
+      </div>
+    );
+  };
+
+  const renderTimelineWidget = () => {
+    if (!metadata.events) return <div>No timeline data available</div>;
+    
+    return (
+      <div className="relative pl-8 space-y-8 before:absolute before:top-0 before:bottom-0 before:left-4 before:w-0.5 before:bg-gray-200">
+        {metadata.events.map((event: any, index: number) => {
+          const date = new Date(event.date);
+          return (
+            <div key={index} className="relative pb-4">
+              <div className="absolute left-[-1.65rem] w-4 h-4 bg-blue-500 rounded-full mt-1.5" />
+              <div className="mb-1">
+                <span className="text-sm font-medium text-gray-500">
+                  {date.toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                  })}
+                </span>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900">{event.title}</h3>
+              <p className="mt-1 text-sm text-gray-500">{event.description}</p>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderMapWidget = () => {
+    if (!metadata.regions) return <div>No map data available</div>;
+    
+    // For a simple representation, we'll just show the regions as cards
+    // In a real implementation, you'd use a mapping library like react-simple-maps
+    return (
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {metadata.regions.map((region: any, index: number) => {
+          // Calculate size based on value - normalize to range of 0.5-1.5
+          const minValue = Math.min(...metadata.regions.map((r: any) => r.value));
+          const maxValue = Math.max(...metadata.regions.map((r: any) => r.value));
+          const range = maxValue - minValue;
+          const scale = range === 0 ? 1 : 0.5 + ((region.value - minValue) / range);
+          
+          return (
+            <div 
+              key={index} 
+              className="relative p-4 rounded-lg bg-blue-50 border border-blue-100"
+              style={{ transform: `scale(${scale})` }}
+            >
+              <div className="text-sm font-medium">{region.name}</div>
+              <div className="text-lg font-bold">{region.value}</div>
+              <div className="text-xs text-gray-500">
+                Lat: {region.lat.toFixed(2)}, Lng: {region.lng.toFixed(2)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderWordCloudWidget = () => {
+    if (!metadata.words) return <div>No word cloud data available</div>;
+    
+    // Sort words by value (frequency)
+    const sortedWords = [...metadata.words].sort((a, b) => b.value - a.value);
+    
+    // Calculate font sizes based on word frequency
+    const minValue = Math.min(...sortedWords.map((w: any) => w.value));
+    const maxValue = Math.max(...sortedWords.map((w: any) => w.value));
+    const range = maxValue - minValue;
+    
+    return (
+      <div className="flex flex-wrap justify-center p-4">
+        {sortedWords.map((word: any, index: number) => {
+          // Map word value to font size between 12 and 32 pixels
+          const fontSize = range === 0 
+            ? 22 
+            : Math.max(12, Math.min(32, 12 + ((word.value - minValue) / range) * 20));
+          
+          // Assign a color from our color palette
+          const color = COLORS[index % COLORS.length];
+          
+          return (
+            <div 
+              key={index} 
+              className="m-2 p-1 inline-block transition-transform hover:scale-110 cursor-pointer"
+              style={{ fontSize: `${fontSize}px`, color }}
+            >
+              {word.text}
+            </div>
+          );
+        })}
       </div>
     );
   };
@@ -136,24 +482,19 @@ const ChartWidget: React.FC<ChartWidgetProps> = ({ widget }) => {
       case 'heatmap':
         return renderHeatMap();
       case 'gauge-widget':
+        return renderGaugeChart();
       case 'treemap-widget':
+        return renderTreeMap();
       case 'bullet-chart':
-      case 'wordcloud-widget':
+        return renderBulletChart();
       case 'kpi-widget':
-      case 'map-widget':
+        return renderKPIWidget();
       case 'timeline-widget':
-        // For now, we'll show a placeholder for these more complex chart types
-        return (
-          <div className="relative">
-            <div className="aspect-video rounded-md overflow-hidden bg-gray-100 flex items-center justify-center">
-              <div className="text-center p-4">
-                <p className="text-lg font-medium">{widget.title}</p>
-                <p className="text-sm text-gray-600">{type} visualization</p>
-                <p className="text-xs text-gray-500 mt-2">This chart type requires additional implementation</p>
-              </div>
-            </div>
-          </div>
-        );
+        return renderTimelineWidget();
+      case 'map-widget':
+        return renderMapWidget();
+      case 'wordcloud-widget':
+        return renderWordCloudWidget();
       default:
         return (
           <div className="p-4 bg-gray-100 rounded-md">

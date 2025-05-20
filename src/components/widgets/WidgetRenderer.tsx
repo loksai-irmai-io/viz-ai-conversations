@@ -17,13 +17,17 @@ interface WidgetRendererProps {
 }
 
 const WidgetRenderer: React.FC<WidgetRendererProps> = ({ widget }) => {
+  // Extract metadata for special cards
+  const location = widget.metadata?.location;
+  const category = widget.metadata?.category;
+
   // Special handlers for weather, news, and time cards
   if (widget.id === 'weather-card') {
-    return <WeatherCard />;
+    return <WeatherCard location={location} />;
   }
   
   if (widget.id === 'news-card') {
-    return <NewsCard />;
+    return <NewsCard category={category} />;
   }
   
   if (widget.id === 'time-card') {
@@ -40,6 +44,7 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = ({ widget }) => {
       case 'line-chart':
       case 'bar-chart':
       case 'pie-chart':
+      case 'donut-chart':
       case 'heatmap':
       case 'gauge-widget':
       case 'treemap-widget':
@@ -68,7 +73,7 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = ({ widget }) => {
   };
 
   return (
-    <Card className="overflow-hidden shadow-md">
+    <Card className="overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg">{widget.title}</CardTitle>
         <CardDescription className="text-sm">{widget.description}</CardDescription>
