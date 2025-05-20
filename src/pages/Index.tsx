@@ -11,6 +11,7 @@ import { toast } from '@/components/ui/use-toast';
 import WeatherCard from '@/components/InfoCards/WeatherCard';
 import NewsCard from '@/components/InfoCards/NewsCard';
 import TimeCard from '@/components/InfoCards/TimeCard';
+import { processQuery } from '@/services/api';
 
 const Index = () => {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -107,63 +108,75 @@ const Index = () => {
       return session;
     }));
     
-    // Simulate AI response
+    // Process the user query
     setIsLoading(true);
     
     try {
-      // Wait for a short delay to simulate processing
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Try to get a response from the backend first
+      const apiResponse = await processQuery(message);
       
-      // Find widgets based on the query
-      const matchedWidgets = findWidgetsByQuery(message);
+      let responseText: string;
+      let matchedWidgets: any[] = [];
       
-      // Generate response text based on matched widgets
-      let responseText = '';
-      if (matchedWidgets.length > 0) {
-        responseText = `Here are the visualizations related to your query: "${message}"`;
+      if (apiResponse.data) {
+        // Use the backend response if available
+        responseText = apiResponse.data.text;
+        matchedWidgets = apiResponse.data.widgets;
       } else {
-        // Check for specific keywords for info cards
-        if (message.toLowerCase().includes('weather')) {
-          responseText = "Here's the current weather information:";
-          // Add weather widget
-          matchedWidgets.push({
-            id: 'weather-card',
-            type: 'weather-card',
-            title: 'Current Weather',
-            description: 'Current weather conditions',
-            module: 'outlier-analysis',
-            image: '',
-            keywords: ['weather'],
-            metadata: {}
-          });
-        } else if (message.toLowerCase().includes('news')) {
-          responseText = "Here are the latest news headlines:";
-          // Add news widget
-          matchedWidgets.push({
-            id: 'news-card',
-            type: 'news-card',
-            title: 'Latest News',
-            description: 'Recent news headlines',
-            module: 'outlier-analysis',
-            image: '',
-            keywords: ['news'],
-            metadata: {}
-          });
-        } else if (message.toLowerCase().includes('time')) {
-          responseText = "Here's the current time:";
-          // Add time widget
-          matchedWidgets.push({
-            id: 'time-card',
-            type: 'time-card',
-            title: 'Current Time',
-            description: 'Current date and time',
-            module: 'outlier-analysis',
-            image: '',
-            keywords: ['time'],
-            metadata: {}
-          });
+        // Fall back to client-side processing
+        // Wait for a short delay to simulate processing
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        
+        // Find widgets based on the query
+        matchedWidgets = findWidgetsByQuery(message);
+        
+        // Generate response text based on matched widgets
+        if (matchedWidgets.length > 0) {
+          responseText = `Here are the visualizations related to your query: "${message}"`;
         } else {
-          responseText = "I couldn't find specific visualizations for your query. Try asking about failure patterns, process execution, control effectiveness, risk concentrations, or other analytics topics.";
+          // Check for specific keywords for info cards
+          if (message.toLowerCase().includes('weather')) {
+            responseText = "Here's the current weather information:";
+            // Add weather widget
+            matchedWidgets.push({
+              id: 'weather-card',
+              type: 'weather-card',
+              title: 'Current Weather',
+              description: 'Current weather conditions',
+              module: 'outlier-analysis',
+              image: '',
+              keywords: ['weather'],
+              metadata: {}
+            });
+          } else if (message.toLowerCase().includes('news')) {
+            responseText = "Here are the latest news headlines:";
+            // Add news widget
+            matchedWidgets.push({
+              id: 'news-card',
+              type: 'news-card',
+              title: 'Latest News',
+              description: 'Recent news headlines',
+              module: 'outlier-analysis',
+              image: '',
+              keywords: ['news'],
+              metadata: {}
+            });
+          } else if (message.toLowerCase().includes('time')) {
+            responseText = "Here's the current time:";
+            // Add time widget
+            matchedWidgets.push({
+              id: 'time-card',
+              type: 'time-card',
+              title: 'Current Time',
+              description: 'Current date and time',
+              module: 'outlier-analysis',
+              image: '',
+              keywords: ['time'],
+              metadata: {}
+            });
+          } else {
+            responseText = "I couldn't find specific visualizations for your query. Try asking about failure patterns, process execution, control effectiveness, risk concentrations, or other analytics topics.";
+          }
         }
       }
       
