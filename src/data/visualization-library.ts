@@ -250,6 +250,46 @@ export const visualizationLibrary: Record<string, Widget> = {
       xAxis: "Activity",
       yAxis: "Count"
     }
+  },
+  "Resource Summary Table": {
+    id: "resource-summary-table",
+    type: "data-table",
+    title: "Resource Summary Table",
+    description: "A table summarizing resource-level performance data.",
+    module: "outlier-analysis",
+    keywords: ["table", "resource", "performance", "summary"],
+    image: "",
+    metadata: {
+      columns: [
+        { header: "Resource", key: "resource" },
+        { header: "Total Events", key: "events" },
+        { header: "Avg. Step Dur (H)", key: "avgDuration" },
+        { header: "Workload IQR Outlier", key: "workloadOutlier" },
+        { header: "Step Dur IQR Outlier", key: "durationOutlier" }
+      ],
+      data: [
+        { resource: "ABAKER", events: 12405, avgDuration: 82.4, workloadOutlier: "No", durationOutlier: "No" },
+        { resource: "CMARTIN", events: 10982, avgDuration: 82.6, workloadOutlier: "No", durationOutlier: "No" },
+        { resource: "DJOHNSON", events: 11567, avgDuration: 83.4, workloadOutlier: "No", durationOutlier: "No" },
+        { resource: "EADAMS", events: 13102, avgDuration: 84.1, workloadOutlier: "Yes", durationOutlier: "No" },
+        { resource: "HBAKER", events: 11234, avgDuration: 83.0, workloadOutlier: "No", durationOutlier: "No" },
+        { resource: "HCOOPER", events: 10789, avgDuration: 82.5, workloadOutlier: "No", durationOutlier: "No" },
+        { resource: "JSMITH", events: 11324, avgDuration: 83.1, workloadOutlier: "No", durationOutlier: "No" },
+        { resource: "KCLARK", events: 11876, avgDuration: 83.7, workloadOutlier: "No", durationOutlier: "No" },
+        { resource: "LJONES", events: 11456, avgDuration: 83.3, workloadOutlier: "No", durationOutlier: "No" },
+        { resource: "LWILSON", events: 12087, avgDuration: 84.0, workloadOutlier: "No", durationOutlier: "No" },
+        { resource: "MALLEN", events: 11654, avgDuration: 83.6, workloadOutlier: "No", durationOutlier: "No" },
+        { resource: "MBROWN", events: 10923, avgDuration: 82.8, workloadOutlier: "No", durationOutlier: "No" },
+        { resource: "PMILLER", events: 11987, avgDuration: 83.9, workloadOutlier: "No", durationOutlier: "No" },
+        { resource: "PMITCHELL", events: 11876, avgDuration: 83.8, workloadOutlier: "No", durationOutlier: "No" },
+        { resource: "RPA", events: 10876, avgDuration: 82.7, workloadOutlier: "No", durationOutlier: "No" },
+        { resource: "SGARCIA", events: 11543, avgDuration: 83.5, workloadOutlier: "No", durationOutlier: "No" },
+        { resource: "TPARKER", events: 11123, avgDuration: 82.9, workloadOutlier: "No", durationOutlier: "No" },
+        { resource: "WDAVIS", events: 11345, avgDuration: 83.2, workloadOutlier: "No", durationOutlier: "No" },
+        { resource: "TFOSTER", events: 14587, avgDuration: 85.7, workloadOutlier: "Yes", durationOutlier: "Yes" }
+      ],
+      highlightRows: ["TFOSTER", "EADAMS"]
+    }
   }
   // Additional visualizations would follow the same pattern
 };
