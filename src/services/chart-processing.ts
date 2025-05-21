@@ -162,7 +162,12 @@ function performSemanticMatch(query: string): Widget | null {
     'performance': ['performance', 'efficiency', 'effectiveness', 'productivity'],
     'distribution': ['distribution', 'allocation', 'spread', 'dispersion', 'arrangement'],
     'summary': ['summary', 'overview', 'synopsis', 'digest', 'breakdown'],
-    'lifecycle': ['lifecycle', 'life cycle', 'workflow', 'process', 'journey']
+    'lifecycle': ['lifecycle', 'life cycle', 'workflow', 'process', 'journey'],
+    'activity': ['activity', 'action', 'task', 'operation', 'step'],
+    'duration': ['duration', 'time', 'period', 'interval', 'span'],
+    'outlier': ['outlier', 'anomaly', 'exception', 'unusual', 'atypical'],
+    'event': ['event', 'occurrence', 'incident', 'happening'],
+    'case': ['case', 'instance', 'example', 'scenario']
   };
   
   // Calculate scores for each visualization
@@ -230,6 +235,20 @@ function performSemanticMatch(query: string): Widget | null {
     });
     
     // 8. Special cases for common requests
+
+    // Object Type Interactions specifically
+    if (vis.title === "Object Type Interactions" && 
+        queryLower.includes("object type") && 
+        (queryLower.includes("interaction") || queryLower.includes("heatmap"))) {
+      score += weights.titleMatch * 1.5;
+    }
+    
+    // Object Type Distribution specifically
+    if (vis.title === "Object Type Distribution" && 
+        queryLower.includes("object type") && 
+        queryLower.includes("distribution")) {
+      score += weights.titleMatch * 1.5;
+    }
     
     // Resource Summary Table specifically
     if (vis.title === "Resource Summary Table" && 
@@ -244,10 +263,49 @@ function performSemanticMatch(query: string): Widget | null {
       score += weights.titleMatch * 1.5;
     }
     
-    // Object Type visualization
-    if ((vis.title === "Object Type Interactions" || vis.title === "Object Type Metrics" || vis.title === "Object Type Distribution") && 
-        queryLower.includes("object type")) {
-      score += weights.titleMatch;
+    // Resource Performance
+    if (vis.title === "Resource Performance" && 
+        (queryLower.includes("resource") && queryLower.includes("performance"))) {
+      score += weights.titleMatch * 1.5;
+    }
+
+    // Activity Duration Outliers
+    if (vis.title === "Activity Duration Outliers" && 
+        (queryLower.includes("activity") && 
+         (queryLower.includes("duration") || queryLower.includes("outlier")))) {
+      score += weights.titleMatch * 1.5;
+    }
+
+    // Process Failure Patterns Distribution
+    if (vis.title === "Process Failure Patterns Distribution" && 
+        queryLower.includes("failure") && 
+        queryLower.includes("distribution")) {
+      score += weights.titleMatch * 1.5;
+    }
+    
+    // Time Gaps Distribution
+    if (vis.title.includes("Distribution of Time Gaps") && 
+        (queryLower.includes("time gap") || queryLower.includes("gap distribution"))) {
+      score += weights.titleMatch * 1.5;
+    }
+    
+    // Event Distribution
+    if (vis.title === "Event Distribution by Case Type" && 
+        (queryLower.includes("event") && queryLower.includes("distribution"))) {
+      score += weights.titleMatch * 1.5;
+    }
+
+    // Activities by ABAKER
+    if (vis.title === "Activities Performed by ABAKER" && 
+        queryLower.includes("abaker")) {
+      score += weights.titleMatch * 2;
+    }
+
+    // Case Complexity
+    if ((vis.title.includes("Case Complexity")) && 
+        queryLower.includes("case") && 
+        (queryLower.includes("complexity") || queryLower.includes("analysis"))) {
+      score += weights.titleMatch * 1.5;
     }
     
     return { visualization: vis, score };

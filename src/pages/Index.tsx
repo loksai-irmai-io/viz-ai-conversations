@@ -8,9 +8,6 @@ import { Message, Session } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 import { findWidgetsByQuery } from '@/data/mock-data';
 import { toast } from '@/components/ui/use-toast';
-import WeatherCard from '@/components/InfoCards/WeatherCard';
-import NewsCard from '@/components/InfoCards/NewsCard';
-import TimeCard from '@/components/InfoCards/TimeCard';
 import { processQuery } from '@/services/api';
 import { processChartQuery } from '@/services/chart-processing';
 
@@ -107,7 +104,7 @@ const Index = () => {
       const uploadMessage: Message = {
         id: uuidv4(),
         role: 'system',
-        content: `File "${fileName}" has been uploaded successfully. You can now ask questions about this file.`,
+        content: `File "${fileName}" has been uploaded successfully. You can now ask questions about this file. Try asking for specific visualizations like "Show me failure patterns", "Display resource performance", or "Show object type interactions".`,
         timestamp: new Date()
       };
       
@@ -171,7 +168,7 @@ const Index = () => {
       
       if (chartWidget) {
         // Found a matching visualization
-        responseText = `Here's the "${chartWidget.title}" visualization. ${chartWidget.description || ''}`;
+        responseText = `Here's the "${chartWidget.title}" visualization: ${chartWidget.description || ''}`;
         matchedWidgets = [chartWidget];
         console.log(`Matched visualization: ${chartWidget.title}`);
       } 
@@ -234,7 +231,16 @@ const Index = () => {
     // Wait for a short delay to simulate processing
     await new Promise((resolve) => setTimeout(resolve, 1000));
     
-    // Find widgets based on the query
+    // Try one more time with full text-based matching using processChartQuery
+    const chartWidget = processChartQuery(query);
+    if (chartWidget) {
+      return {
+        text: `Here's the "${chartWidget.title}" visualization: ${chartWidget.description}`,
+        widgets: [chartWidget]
+      };
+    }
+    
+    // Find widgets based on the query using older method as final fallback
     const matchedWidgets = findWidgetsByQuery(query);
     
     // Generate response text based on matched widgets
@@ -243,89 +249,44 @@ const Index = () => {
     if (matchedWidgets.length > 0) {
       // If we found widgets based on the query, respond with contextual information
       if (matchedWidgets.length === 1) {
-        responseText = `Here's the "${matchedWidgets[0].title}" visualization. ${matchedWidgets[0].description || ''}`;
+        responseText = `Here's the "${matchedWidgets[0].title}" visualization: ${matchedWidgets[0].description || ''}`;
       } else {
         responseText = `Here are ${matchedWidgets.length} visualizations related to your query:`;
       }
+      
+      return { text: responseText, widgets: matchedWidgets };
+    } else if (uploadedFile) {
+      // Special response for uploaded files when no visualization matches
+      responseText = `I've analyzed the uploaded file "${uploadedFile}", but couldn't find a specific visualization matching your query. Try asking for specific visualizations like:
+      
+- "Show me failure patterns"
+- "Display resource summary table"
+- "Show object type interactions"
+- "Show me resource performance"
+- "Show me case complexity analysis"
+- "View activity duration outliers"
+- "Show me event distribution by case type"`;
+      
+      return { text: responseText, widgets: [] };
     } else {
-      // Check for specific keywords for info cards
-      if (query.toLowerCase().includes('weather')) {
-        responseText = "Here's the current weather information:";
-        // Extract location if provided
-        const locationPattern = /(?:weather|temperature|forecast)\s+(?:in|for|at)\s+([A-Za-z\s]+)/i;
-        const match = query.match(locationPattern);
-        let location = "New York";  // Default
-        
-        if (match && match[1]) {
-          location = match[1].trim();
-        } else {
-          // Try simpler pattern
-          const words = query.split(' ');
-          for (let i = 0; i < words.length; i++) {
-            if (words[i].toLowerCase() === 'in' && i < words.length - 1) {
-              location = words[i+1];
-              break;
-            }
-          }
-        }
-        
-        // Add weather widget
-        matchedWidgets.push({
-          id: 'weather-card',
-          type: 'weather-card',
-          title: 'Current Weather',
-          description: `Current weather conditions for ${location}`,
-          module: 'outlier-analysis',
-          image: '',
-          keywords: ['weather'],
-          metadata: { location }
-        });
-      } else if (query.toLowerCase().includes('news')) {
-        responseText = "Here are the latest news headlines:";
-        // Extract category if provided
-        const newsCategories = ["business", "entertainment", "general", "health", "science", "sports", "technology"];
-        let category = "technology";  // Default
-        
-        for (const cat of newsCategories) {
-          if (query.toLowerCase().includes(cat)) {
-            category = cat;
-            break;
-          }
-        }
-        
-        // Add news widget
-        matchedWidgets.push({
-          id: 'news-card',
-          type: 'news-card',
-          title: 'Latest News',
-          description: `Recent news headlines in the ${category} category`,
-          module: 'outlier-analysis',
-          image: '',
-          keywords: ['news'],
-          metadata: { category }
-        });
-      } else if (query.toLowerCase().includes('time')) {
-        responseText = "Here's the current time:";
-        // Add time widget
-        matchedWidgets.push({
-          id: 'time-card',
-          type: 'time-card',
-          title: 'Current Time',
-          description: 'Current date and time',
-          module: 'outlier-analysis',
-          image: '',
-          keywords: ['time'],
-          metadata: {}
-        });
-      } else if (uploadedFile) {
-        // Special response for uploaded files when no visualization matches
-        responseText = `I've analyzed the uploaded file "${uploadedFile}", but couldn't find a specific visualization matching your query. You can ask about specific types of visualizations like "Show me failure patterns", "Display resource distribution", or "Create a performance chart".`;
-      } else {
-        responseText = "I couldn't find a specific visualization matching your query. Try asking about specific visualizations like 'Show me Object Type Interactions', 'Display Resource Summary Table', or 'Show Failure Pattern Analysis'.";
-      }
+      responseText = "I couldn't find a specific visualization matching your query. Try asking for specific visualizations like:";
+      
+      // List available visualization types as examples
+      const visualizationExamples = [
+        "Object Type Interactions",
+        "Resource Summary Table",
+        "Failure Pattern Analysis",
+        "Resource Performance",
+        "Activity Duration Outliers",
+        "Event Distribution by Case Type",
+        "Case Complexity Analysis"
+      ];
+      
+      // Add the examples to the response
+      responseText += visualizationExamples.map(example => `\n- "Show me ${example}"`).join('');
+      
+      return { text: responseText, widgets: [] };
     }
-    
-    return { text: responseText, widgets: matchedWidgets };
   };
   
   return (

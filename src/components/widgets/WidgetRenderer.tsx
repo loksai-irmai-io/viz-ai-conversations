@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Widget } from '@/data/mock-data';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -11,7 +12,7 @@ import WeatherCard from '../InfoCards/WeatherCard';
 import NewsCard from '../InfoCards/NewsCard';
 import TimeCard from '../InfoCards/TimeCard';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { BookOpen, ChartBar, FileBarChart, FileText, TableIcon, Layers } from 'lucide-react';
+import { BookOpen, ChartBar, FileBarChart, FileText, TableIcon, Layers, ScatterChart, BarChart, PieChart, LineChart } from 'lucide-react';
 
 interface WidgetRendererProps {
   widget: Widget;
@@ -39,14 +40,22 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = ({ widget }) => {
   const renderWidgetIcon = () => {
     const iconClass = "h-5 w-5 mr-2 text-muted-foreground";
     
-    if (widget.type.includes('chart')) {
-      return <ChartBar className={iconClass} />;
+    if (widget.type.includes('chart') && widget.type.includes('bar')) {
+      return <BarChart className={iconClass} />;
+    } else if (widget.type.includes('pie')) {
+      return <PieChart className={iconClass} />;
+    } else if (widget.type.includes('line')) {
+      return <LineChart className={iconClass} />;
+    } else if (widget.type.includes('scatter')) {
+      return <ScatterChart className={iconClass} />;
     } else if (widget.type.includes('table')) {
       return <TableIcon className={iconClass} />;
     } else if (widget.type.includes('flowchart')) {
       return <Layers className={iconClass} />;
     } else if (widget.type.includes('map')) {
       return <FileText className={iconClass} />;
+    } else if (widget.type.includes('heatmap')) {
+      return <ChartBar className={iconClass} />;
     } else {
       return <FileBarChart className={iconClass} />;
     }
