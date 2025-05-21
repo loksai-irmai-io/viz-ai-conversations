@@ -133,12 +133,16 @@ const Index = () => {
       let responseText: string;
       let matchedWidgets: any[] = [];
       
-      // Check for chart title match first
+      // First, try to interpret the message as a visualization request
+      // using the enhanced semantic matching in processChartQuery
       const chartWidget = processChartQuery(message);
+      
       if (chartWidget) {
-        responseText = `Here's the visualization for "${chartWidget.title}":`;
+        // Found a matching visualization
+        responseText = `Here's the "${chartWidget.title}" visualization:`;
         matchedWidgets = [chartWidget];
-      }
+        console.log(`Matched visualization: ${chartWidget.title}`);
+      } 
       // If no chart match, try backend or fallback
       else if (isBackendAvailable) {
         const apiResponse = await processQuery(message);
