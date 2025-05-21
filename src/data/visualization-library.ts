@@ -1,4 +1,3 @@
-
 import { Widget } from './mock-data';
 
 // Define a comprehensive mapping of chart titles to their configurations
@@ -225,24 +224,31 @@ export const visualizationLibrary: Record<string, Widget> = {
       distribution: "right-skewed"
     }
   },
-  // Adding a few more visualizations. For a complete implementation, all 20 would need to be defined.
-  "Case Complexity Analysis": {
-    id: "case-complexity-analysis",
-    type: "scatter-chart",
-    title: "Case Complexity Analysis",
-    description: "Scatter plot analyzing complexity outliers using Z-score.",
+  "Activities Performed by ABAKER": {
+    id: "activities-by-abaker",
+    type: "bar-chart",
+    title: "Activities Performed by ABAKER",
+    description: "A bar graph showing activity counts by resource ABAKER.",
     module: "outlier-analysis",
-    keywords: ["scatter plot", "complexity", "z-score"],
+    keywords: ["bar chart", "activities", "resource", "ABAKER"],
     image: "",
     metadata: {
-      data: Array.from({ length: 30 }, (_, i) => ({
-        caseId: `CASE_${1000 + i}`,
-        zScore: 1.5 + Math.random() * 1.3,
-        isOutlier: false
-      })),
-      threshold: 3.0,
-      xAxis: "Case ID",
-      yAxis: "Composite Z-Score"
+      data: [
+        { name: "Application Submission", value: 2800 },
+        { name: "Appraisal Request", value: 1200 },
+        { name: "Valuation Accepted", value: 900 },
+        { name: "Final Approval", value: 1500 },
+        { name: "Loan Closure", value: 800 },
+        { name: "Signing of Loan Agreement", value: 1100 },
+        { name: "Disbursement of funds", value: 1300 },
+        { name: "Loan funding", value: 700 },
+        { name: "Rejected", value: 300 },
+        { name: "Additional info required", value: 1000 },
+        { name: "Valuation issues", value: 500 },
+        { name: "Underwriting rejected", value: 200 }
+      ],
+      xAxis: "Activity",
+      yAxis: "Count"
     }
   }
   // Additional visualizations would follow the same pattern
@@ -255,10 +261,19 @@ export function findVisualizationByTitle(title: string): Widget | null {
     return visualizationLibrary[title];
   }
   
+  // Case-insensitive exact match
+  const caseInsensitiveMatch = Object.keys(visualizationLibrary).find(key => 
+    key.toLowerCase() === title.toLowerCase()
+  );
+  
+  if (caseInsensitiveMatch) {
+    return visualizationLibrary[caseInsensitiveMatch];
+  }
+  
   // Partial match (title contains)
   const lowerTitle = title.toLowerCase();
   const partialMatch = Object.keys(visualizationLibrary).find(key => 
-    lowerTitle.includes(key.toLowerCase())
+    lowerTitle.includes(key.toLowerCase()) || key.toLowerCase().includes(lowerTitle)
   );
   
   if (partialMatch) {

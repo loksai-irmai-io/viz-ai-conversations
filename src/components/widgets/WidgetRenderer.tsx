@@ -53,6 +53,7 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = ({ widget }) => {
       case 'kpi-widget':
       case 'map-widget':
       case 'timeline-widget':
+      case 'scatter-chart':
         return <ChartWidget widget={widget} />;
       
       case 'data-table':
