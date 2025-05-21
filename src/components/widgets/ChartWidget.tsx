@@ -14,6 +14,27 @@ interface ChartWidgetProps {
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
+// Custom tick component for rotated labels
+const CustomXAxisTick = (props: any) => {
+  const { x, y, payload } = props;
+  
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text 
+        x={0} 
+        y={0} 
+        dy={16} 
+        textAnchor="end" 
+        fill="#666" 
+        transform="rotate(-45)"
+        style={{ fontSize: '10px' }}
+      >
+        {payload.value}
+      </text>
+    </g>
+  );
+};
+
 const ChartWidget: React.FC<ChartWidgetProps> = ({ widget }) => {
   const { metadata, type } = widget;
   
@@ -525,8 +546,8 @@ const ChartWidget: React.FC<ChartWidgetProps> = ({ widget }) => {
             name={metadata.xAxisLabel || "X"} 
             allowDuplicatedCategory={false}
             interval={0}
-            tick={{ fontSize: 10, angle: -45, textAnchor: 'end' }}
             height={70}
+            tick={<CustomXAxisTick />}
           />
           <YAxis 
             type="number" 
