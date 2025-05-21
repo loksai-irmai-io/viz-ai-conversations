@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Widget } from '@/data/mock-data';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -11,7 +12,7 @@ import WeatherCard from '../InfoCards/WeatherCard';
 import NewsCard from '../InfoCards/NewsCard';
 import TimeCard from '../InfoCards/TimeCard';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { BookOpen, ChartBar, FileBarChart, FileText, TableIcon, Layers, ScatterChart, BarChart, PieChart, LineChart } from 'lucide-react';
+import { BookOpen, ChartBar, FileText, TableIcon, Layers, ScatterChart, BarChart, PieChart, LineChart } from 'lucide-react';
 
 interface WidgetRendererProps {
   widget: Widget;
@@ -56,7 +57,7 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = ({ widget }) => {
     } else if (widget.type.includes('heatmap')) {
       return <ChartBar className={iconClass} />;
     } else {
-      return <FileBarChart className={iconClass} />;
+      return <FileText className={iconClass} />;
     }
   };
 
@@ -72,6 +73,7 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = ({ widget }) => {
       case 'bar-chart':
       case 'pie-chart':
       case 'donut-chart':
+      case 'scatter-chart':
       case 'heatmap':
       case 'gauge-widget':
       case 'treemap-widget':
@@ -80,7 +82,6 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = ({ widget }) => {
       case 'kpi-widget':
       case 'map-widget':
       case 'timeline-widget':
-      case 'scatter-chart':
         return <ChartWidget widget={widget} />;
       
       // Data table with highlighting support

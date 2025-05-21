@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Widget } from '@/data/mock-data';
 import { 
@@ -467,6 +466,70 @@ const ChartWidget: React.FC<ChartWidgetProps> = ({ widget }) => {
     );
   };
 
+  // New function to render scatter chart
+  const renderScatterChart = () => {
+    if (!metadata.data) return <div>No scatter plot data available</div>;
+    
+    // Determine if we need to use multiple scatter series or just one
+    const hasMultipleSeries = metadata.series && Array.isArray(metadata.series);
+    
+    return (
+      <ResponsiveContainer width="100%" height={300}>
+        <ScatterChart
+          margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+        >
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis 
+            type="number" 
+            dataKey="x" 
+            name={metadata.xAxisLabel || "X"} 
+            unit={metadata.xUnit || ""}
+          />
+          <YAxis 
+            type="number" 
+            dataKey="y" 
+            name={metadata.yAxisLabel || "Y"} 
+            unit={metadata.yUnit || ""}
+          />
+          <Tooltip 
+            cursor={{ strokeDasharray: '3 3' }}
+            formatter={(value, name) => [value, name]}
+          />
+          <Legend />
+          
+          {hasMultipleSeries ? (
+            // Render multiple scatter series
+            metadata.series.map((serie: any, index: number) => (
+              <Scatter 
+                key={serie.name || `series-${index}`}
+                name={serie.name || `Series ${index + 1}`} 
+                data={serie.data} 
+                fill={COLORS[index % COLORS.length]}
+              />
+            ))
+          ) : (
+            // Render a single scatter series
+            <Scatter 
+              name={metadata.name || "Data"} 
+              data={metadata.data} 
+              fill={metadata.color || COLORS[0]}
+            />
+          )}
+          
+          {/* Add reference line if threshold exists */}
+          {metadata.threshold && (
+            <ReferenceLine 
+              y={metadata.threshold} 
+              stroke="red" 
+              strokeDasharray="3 3" 
+              label={metadata.thresholdLabel || "Threshold"} 
+            />
+          )}
+        </ScatterChart>
+      </ResponsiveContainer>
+    );
+  };
+
   const renderChart = () => {
     switch (type) {
       case 'line-chart':
@@ -492,6 +555,8 @@ const ChartWidget: React.FC<ChartWidgetProps> = ({ widget }) => {
         return renderMapWidget();
       case 'wordcloud-widget':
         return renderWordCloudWidget();
+      case 'scatter-chart':
+        return renderScatterChart();
       default:
         return (
           <div className="p-4 bg-gray-100 rounded-md">
