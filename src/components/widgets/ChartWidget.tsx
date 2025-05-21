@@ -471,39 +471,79 @@ const ChartWidget: React.FC<ChartWidgetProps> = ({ widget }) => {
     );
   };
 
-  // Fixed scatter chart renderer with proper data validation
+  // Enhanced scatter chart renderer with proper data validation and formatting
   const renderScatterChart = () => {
     // Validate that we have data for the scatter plot
     if (!metadata?.data || !Array.isArray(metadata.data) || metadata.data.length === 0) {
       return <div className="text-center p-4 text-gray-500">No scatter plot data available</div>;
     }
     
-    console.log("Scatter chart data:", metadata.data);
+    console.log("Rendering scatter chart with data:", metadata.data);
     
+    // Ensure we have properly formatted data for the scatter plot
+    const processedData = metadata.data.map((item: any) => {
+      // Make sure each point has x and y coordinates
+      return {
+        x: item.x,
+        y: typeof item.y === 'number' ? item.y : parseFloat(item.y) || 0,
+        name: item.name || item.x,
+        outlier: item.outlier || false
+      };
+    });
+
+    // Custom dot component for rendering scatter points
+    const CustomScatterDot = (props: any) => {
+      const { cx, cy, payload } = props;
+      
+      // Highlight outliers in red
+      const color = payload.outlier ? '#FF0000' : '#8884d8';
+      const size = payload.outlier ? 8 : 6;
+      
+      return (
+        <circle 
+          cx={cx} 
+          cy={cy} 
+          r={size} 
+          fill={color} 
+          stroke="none" 
+        />
+      );
+    };
+
     // Determine if we need to use multiple scatter series or just one
     const hasMultipleSeries = metadata.series && Array.isArray(metadata.series);
     
     return (
       <ResponsiveContainer width="100%" height={300}>
         <ScatterChart
-          margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+          margin={{ top: 20, right: 20, left: 20, bottom: 20 }}
         >
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis 
-            type="number" 
+            type="category" 
             dataKey="x" 
             name={metadata.xAxisLabel || "X"} 
-            unit={metadata.xUnit || ""}
+            allowDuplicatedCategory={false}
+            interval={0}
+            tick={{ fontSize: 10, angle: -45, textAnchor: 'end' }}
+            height={70}
           />
           <YAxis 
             type="number" 
             dataKey="y" 
             name={metadata.yAxisLabel || "Y"} 
             unit={metadata.yUnit || ""}
+            domain={metadata.yDomain || ['auto', 'auto']}
           />
           <Tooltip 
             cursor={{ strokeDasharray: '3 3' }}
-            formatter={(value, name) => [value, name]}
+            formatter={(value, name) => {
+              if (name === 'y') {
+                return [value, metadata.yAxisLabel || 'Value'];
+              }
+              return [value, name];
+            }}
+            labelFormatter={(value) => `${value}`}
           />
           <Legend />
           
@@ -515,14 +555,16 @@ const ChartWidget: React.FC<ChartWidgetProps> = ({ widget }) => {
                 name={serie.name || `Series ${index + 1}`} 
                 data={serie.data} 
                 fill={COLORS[index % COLORS.length]}
+                shape={<CustomScatterDot />}
               />
             ))
           ) : (
             // Render a single scatter series
             <Scatter 
-              name={metadata.name || "Data"} 
-              data={metadata.data} 
+              name={metadata.name || metadata.yAxisLabel || "Data"} 
+              data={processedData} 
               fill={metadata.color || COLORS[0]}
+              shape={<CustomScatterDot />}
             />
           )}
           
@@ -581,16 +623,16 @@ const ChartWidget: React.FC<ChartWidgetProps> = ({ widget }) => {
       {renderChart()}
       
       {/* Axis Labels */}
-      <div className="flex justify-between text-xs text-gray-500">
-        {metadata?.xAxis && (
+      <div className="flex justify-between text-xs text-gray-500 relative">
+        {metadata?.xAxisLabel && (
           <div className="text-center w-full">
-            {metadata.xAxis}
+            {metadata.xAxisLabel}
           </div>
         )}
         
-        {metadata?.yAxis && (
-          <div className="text-right -rotate-90 origin-center absolute -left-6 top-1/2">
-            {metadata.yAxis}
+        {metadata?.yAxisLabel && (
+          <div className="absolute -left-6 transform -rotate-90 origin-center" style={{top: '-150px'}}>
+            {metadata.yAxisLabel}
           </div>
         )}
       </div>
