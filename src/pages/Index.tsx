@@ -20,6 +20,7 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isBackendAvailable, setIsBackendAvailable] = useState<boolean | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<string | null>(null);
   
   // Get the active session or create a new one
   const activeSession = sessions.find((s) => s.id === activeSessionId) || {
@@ -90,11 +91,37 @@ const Index = () => {
     ]);
     setActiveSessionId(newSessionId);
     setIsSidebarOpen(false); // Close sidebar on mobile when starting new chat
+    setUploadedFile(null); // Clear uploaded file when starting a new chat
   };
   
   const handleSelectSession = (sessionId: string) => {
     setActiveSessionId(sessionId);
     setIsSidebarOpen(false); // Close sidebar on mobile when selecting a session
+  };
+  
+  const handleFileUpload = (fileName: string) => {
+    setUploadedFile(fileName);
+    
+    // Add system message about file upload
+    if (activeSessionId) {
+      const uploadMessage: Message = {
+        id: uuidv4(),
+        role: 'system',
+        content: `File "${fileName}" has been uploaded successfully. You can now ask questions about this file.`,
+        timestamp: new Date()
+      };
+      
+      setSessions((prev) => prev.map((session) => {
+        if (session.id === activeSessionId) {
+          return {
+            ...session,
+            lastUpdated: new Date(),
+            messages: [...session.messages, uploadMessage]
+          };
+        }
+        return session;
+      }));
+    }
   };
   
   const handleSubmit = async (message: string) => {
@@ -133,19 +160,24 @@ const Index = () => {
       let responseText: string;
       let matchedWidgets: any[] = [];
       
+      // If there's an uploaded file, include it in the context
+      const queryWithContext = uploadedFile 
+        ? `Analysis for uploaded file "${uploadedFile}": ${message}`
+        : message;
+      
       // First, try to interpret the message as a visualization request
       // using the enhanced semantic matching in processChartQuery
-      const chartWidget = processChartQuery(message);
+      const chartWidget = processChartQuery(queryWithContext);
       
       if (chartWidget) {
         // Found a matching visualization
-        responseText = `Here's the "${chartWidget.title}" visualization:`;
+        responseText = `Here's the "${chartWidget.title}" visualization. ${chartWidget.description || ''}`;
         matchedWidgets = [chartWidget];
         console.log(`Matched visualization: ${chartWidget.title}`);
       } 
       // If no chart match, try backend or fallback
       else if (isBackendAvailable) {
-        const apiResponse = await processQuery(message);
+        const apiResponse = await processQuery(queryWithContext);
         
         if (apiResponse.data) {
           // Use the backend response
@@ -154,13 +186,13 @@ const Index = () => {
           console.log("Backend response:", apiResponse.data);
         } else {
           // Fall back to client-side processing
-          const fallbackResponse = await processFallbackQuery(message);
+          const fallbackResponse = await processFallbackQuery(queryWithContext);
           responseText = fallbackResponse.text;
           matchedWidgets = fallbackResponse.widgets;
         }
       } else {
         // Use client-side processing if backend isn't available
-        const fallbackResponse = await processFallbackQuery(message);
+        const fallbackResponse = await processFallbackQuery(queryWithContext);
         responseText = fallbackResponse.text;
         matchedWidgets = fallbackResponse.widgets;
       }
@@ -209,19 +241,31 @@ const Index = () => {
     let responseText: string;
     
     if (matchedWidgets.length > 0) {
-      responseText = `Here are the visualizations related to your query: "${query}"`;
+      // If we found widgets based on the query, respond with contextual information
+      if (matchedWidgets.length === 1) {
+        responseText = `Here's the "${matchedWidgets[0].title}" visualization. ${matchedWidgets[0].description || ''}`;
+      } else {
+        responseText = `Here are ${matchedWidgets.length} visualizations related to your query:`;
+      }
     } else {
       // Check for specific keywords for info cards
       if (query.toLowerCase().includes('weather')) {
         responseText = "Here's the current weather information:";
         // Extract location if provided
-        const words = query.split(' ');
+        const locationPattern = /(?:weather|temperature|forecast)\s+(?:in|for|at)\s+([A-Za-z\s]+)/i;
+        const match = query.match(locationPattern);
         let location = "New York";  // Default
         
-        for (let i = 0; i < words.length; i++) {
-          if (words[i].toLowerCase() === 'in' && i < words.length - 1) {
-            location = words[i+1];
-            break;
+        if (match && match[1]) {
+          location = match[1].trim();
+        } else {
+          // Try simpler pattern
+          const words = query.split(' ');
+          for (let i = 0; i < words.length; i++) {
+            if (words[i].toLowerCase() === 'in' && i < words.length - 1) {
+              location = words[i+1];
+              break;
+            }
           }
         }
         
@@ -230,7 +274,7 @@ const Index = () => {
           id: 'weather-card',
           type: 'weather-card',
           title: 'Current Weather',
-          description: 'Current weather conditions',
+          description: `Current weather conditions for ${location}`,
           module: 'outlier-analysis',
           image: '',
           keywords: ['weather'],
@@ -254,7 +298,7 @@ const Index = () => {
           id: 'news-card',
           type: 'news-card',
           title: 'Latest News',
-          description: 'Recent news headlines',
+          description: `Recent news headlines in the ${category} category`,
           module: 'outlier-analysis',
           image: '',
           keywords: ['news'],
@@ -273,8 +317,11 @@ const Index = () => {
           keywords: ['time'],
           metadata: {}
         });
+      } else if (uploadedFile) {
+        // Special response for uploaded files when no visualization matches
+        responseText = `I've analyzed the uploaded file "${uploadedFile}", but couldn't find a specific visualization matching your query. You can ask about specific types of visualizations like "Show me failure patterns", "Display resource distribution", or "Create a performance chart".`;
       } else {
-        responseText = "I couldn't find specific visualizations for your query. Try asking about specific chart types like 'Show me a bar chart', 'Display a heatmap', or 'Create a pie chart'. You can also ask for information like weather, news, or the current time.";
+        responseText = "I couldn't find a specific visualization matching your query. Try asking about specific visualizations like 'Show me Object Type Interactions', 'Display Resource Summary Table', or 'Show Failure Pattern Analysis'.";
       }
     }
     
@@ -303,7 +350,8 @@ const Index = () => {
         />
         <ChatInput 
           onSubmit={handleSubmit} 
-          isLoading={isLoading} 
+          isLoading={isLoading}
+          onFileUpload={handleFileUpload}
         />
       </div>
     </div>

@@ -9,10 +9,11 @@ import { toast } from '@/components/ui/use-toast';
 
 interface ChatInputProps {
   onSubmit: (message: string) => void;
+  onFileUpload?: (fileName: string) => void;
   isLoading: boolean;
 }
 
-const ChatInput: React.FC<ChatInputProps> = ({ onSubmit, isLoading }) => {
+const ChatInput: React.FC<ChatInputProps> = ({ onSubmit, onFileUpload, isLoading }) => {
   const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [showFileUploader, setShowFileUploader] = useState(false);
@@ -23,7 +24,11 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSubmit, isLoading }) => {
 
   // Handle file upload
   const handleFileUpload = (fileName: string) => {
-    setMessage(prev => `Analyze the uploaded file "${fileName}": ${prev}`);
+    if (onFileUpload) {
+      onFileUpload(fileName);
+    } else {
+      setMessage(prev => `Analyze the uploaded file "${fileName}": ${prev}`);
+    }
     setShowFileUploader(false);
     toast({
       title: "File uploaded successfully",

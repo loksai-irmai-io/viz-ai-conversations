@@ -28,41 +28,9 @@ export function processChartQuery(query: string): Widget | null {
     }
   }
   
-  // If still not found, look for semantic matches using common visualization request patterns
+  // If still not found, parse the intent from the full sentence
   if (!visualization) {
-    // Extract potential visualization references from the query
-    const showPatterns = [
-      /show me (?:the )?(.*?)(?:\s|$)/i,
-      /display (?:the )?(.*?)(?:\s|$)/i,
-      /view (?:the )?(.*?)(?:\s|$)/i,
-      /visualize (?:the )?(.*?)(?:\s|$)/i,
-      /present (?:the )?(.*?)(?:\s|$)/i,
-      /get (?:the )?(.*?)(?:\s|$)/i,
-      /generate (?:a |an )?(.*?)(?:\s|$)/i,
-      /create (?:a |an )?(.*?)(?:\s|$)/i,
-      /i want to see (?:the )?(.*?)(?:\s|$)/i,
-      /can you show (?:the )?(.*?)(?:\s|$)/i
-    ];
-    
-    // Try to extract potential visualization title from patterns
-    let potentialTitle = null;
-    for (const pattern of showPatterns) {
-      const match = query.match(pattern);
-      if (match && match[1]) {
-        potentialTitle = match[1].trim();
-        if (potentialTitle.length > 3) { // Skip very short matches
-          console.log(`Found potential title from pattern: ${potentialTitle}`);
-          visualization = findVisualizationByTitle(potentialTitle);
-          if (visualization) break;
-        }
-      }
-    }
-    
-    // If still not found, perform semantic matching on the entire query
-    if (!visualization) {
-      console.log(`Performing semantic matching on full query: ${normalizedQuery}`);
-      visualization = performSemanticMatch(normalizedQuery);
-    }
+    visualization = parseQueryIntent(normalizedQuery);
   }
   
   if (visualization) {
@@ -77,6 +45,81 @@ export function processChartQuery(query: string): Widget | null {
 }
 
 /**
+ * Parse the user's intent from their query
+ * This is a more advanced version that considers the full sentence structure
+ */
+function parseQueryIntent(query: string): Widget | null {
+  // Import all visualizations for matching
+  const { visualizationLibrary } = require('@/data/visualization-library');
+  
+  // Extract potential visualization references from the query
+  const showPatterns = [
+    /show (?:me |us |the |)?(?:a |an |)?(?:chart |graph |visualization |report |data |statistics |metrics |analysis |information |details |)?(?:for |about |on |of |related to |regarding |)?(?:the |)?([^.?!]+)[.?!]?/i,
+    /display (?:the |a |an |)?(?:chart |graph |visualization |report |data |statistics |metrics |analysis |information |details |)?(?:for |about |on |of |related to |regarding |)?(?:the |)?([^.?!]+)[.?!]?/i,
+    /view (?:the |a |an |)?(?:chart |graph |visualization |report |data |statistics |metrics |analysis |information |details |)?(?:for |about |on |of |related to |regarding |)?(?:the |)?([^.?!]+)[.?!]?/i,
+    /visualize (?:the |a |an |)?(?:chart |graph |report |data |statistics |metrics |analysis |information |details |)?(?:for |about |on |of |related to |regarding |)?(?:the |)?([^.?!]+)[.?!]?/i,
+    /present (?:the |a |an |)?(?:chart |graph |visualization |report |data |statistics |metrics |analysis |information |details |)?(?:for |about |on |of |related to |regarding |)?(?:the |)?([^.?!]+)[.?!]?/i,
+    /get (?:the |a |an |)?(?:chart |graph |visualization |report |data |statistics |metrics |analysis |information |details |)?(?:for |about |on |of |related to |regarding |)?(?:the |)?([^.?!]+)[.?!]?/i,
+    /generate (?:the |a |an |)?(?:chart |graph |visualization |report |data |statistics |metrics |analysis |information |details |)?(?:for |about |on |of |related to |regarding |)?(?:the |)?([^.?!]+)[.?!]?/i,
+    /create (?:the |a |an |)?(?:chart |graph |visualization |report |data |statistics |metrics |analysis |information |details |)?(?:for |about |on |of |related to |regarding |)?(?:the |)?([^.?!]+)[.?!]?/i,
+    /i want to see (?:the |a |an |)?(?:chart |graph |visualization |report |data |statistics |metrics |analysis |information |details |)?(?:for |about |on |of |related to |regarding |)?(?:the |)?([^.?!]+)[.?!]?/i,
+    /can you show (?:me |us |)?(?:the |a |an |)?(?:chart |graph |visualization |report |data |statistics |metrics |analysis |information |details |)?(?:for |about |on |of |related to |regarding |)?(?:the |)?([^.?!]+)[.?!]?/i,
+    /i need (?:to see |)?(?:the |a |an |)?(?:chart |graph |visualization |report |data |statistics |metrics |analysis |information |details |)?(?:for |about |on |of |related to |regarding |)?(?:the |)?([^.?!]+)[.?!]?/i,
+    /analyze (?:the |)?([^.?!]+)[.?!]?/i,
+  ];
+  
+  // Try to extract potential visualization title from patterns
+  let extractedPhrases = [];
+  
+  for (const pattern of showPatterns) {
+    const match = query.match(pattern);
+    if (match && match[1]) {
+      const extractedPhrase = match[1].trim();
+      if (extractedPhrase.length > 2) { // Skip very short matches
+        extractedPhrases.push(extractedPhrase);
+      }
+    }
+  }
+  
+  // Special patterns for uploaded file analysis
+  if (query.includes("file") && query.includes("upload")) {
+    const analysisPatterns = [
+      /analyze (?:the |this |)?(?:uploaded |)?file (?:for |about |on |regarding |)?([^.?!]+)[.?!]?/i,
+      /examine (?:the |this |)?(?:uploaded |)?file (?:for |about |on |regarding |)?([^.?!]+)[.?!]?/i,
+      /process (?:the |this |)?(?:uploaded |)?file (?:for |about |on |regarding |)?([^.?!]+)[.?!]?/i,
+      /uploaded (?:a |the |)?file (?:about |for |regarding |on |)?([^.?!]+)[.?!]?/i,
+    ];
+    
+    for (const pattern of analysisPatterns) {
+      const match = query.match(pattern);
+      if (match && match[1]) {
+        const extractedPhrase = match[1].trim();
+        if (extractedPhrase.length > 2) {
+          extractedPhrases.push(extractedPhrase);
+        }
+      }
+    }
+  }
+  
+  // If we have extracted phrases, try to match them to visualization titles
+  if (extractedPhrases.length > 0) {
+    console.log("Extracted phrases for intent matching:", extractedPhrases);
+    
+    // First attempt: direct matching from extracted phrases
+    for (const phrase of extractedPhrases) {
+      const visualization = findVisualizationByTitle(phrase);
+      if (visualization) {
+        console.log(`Found visualization by extracted phrase: ${phrase}`);
+        return visualization;
+      }
+    }
+  }
+  
+  // Calculate semantic scores for all visualizations
+  return performSemanticMatch(query);
+}
+
+/**
  * Performs semantic matching on the query to find the most relevant visualization
  * Uses a weighted scoring system based on visualization metadata
  */
@@ -86,69 +129,126 @@ function performSemanticMatch(query: string): Widget | null {
   
   // Define semantic scoring weights
   const weights = {
-    titleMatch: 10,
-    keywordMatch: 5,
-    descriptionMatch: 3,
-    moduleMatch: 2
+    titleMatch: 15,        // Increased for exact title matches
+    titleWordMatch: 10,    // Words in title
+    keywordMatch: 8,       // Keywords explicitly defined
+    descriptionMatch: 5,   // Words in description
+    moduleMatch: 4,        // Module name match
+    typeMatch: 7,          // Chart type match
+    contextMatch: 6        // Context-specific terms
+  };
+  
+  // Define common chart type terms and their variations
+  const chartTypeMapping = {
+    'bar': ['bar chart', 'bar graph', 'column chart', 'histogram'],
+    'pie': ['pie chart', 'pie graph', 'donut chart', 'circle graph'],
+    'line': ['line chart', 'line graph', 'trend line', 'time series'],
+    'scatter': ['scatter plot', 'scatter chart', 'scatter graph', 'dot plot'],
+    'heatmap': ['heat map', 'heatmap', 'color map', 'density map'],
+    'table': ['table', 'data table', 'grid', 'matrix'],
+    'flowchart': ['flow chart', 'flowchart', 'process flow', 'workflow diagram'],
+    'treemap': ['tree map', 'treemap', 'hierarchy chart'],
+    'gauge': ['gauge chart', 'gauge', 'meter chart', 'dial chart'],
+    'kpi': ['kpi dashboard', 'metrics dashboard', 'performance indicators']
+  };
+  
+  // Domain-specific terms
+  const domainTerms = {
+    'resource': ['resource', 'personnel', 'staff', 'employee', 'worker', 'human'],
+    'failure': ['failure', 'error', 'issue', 'problem', 'breakdown', 'fault'],
+    'pattern': ['pattern', 'trend', 'behavior', 'sequence', 'occurrence'],
+    'object': ['object', 'entity', 'item', 'element', 'component'],
+    'trade': ['trade', 'transaction', 'exchange', 'deal', 'business'],
+    'performance': ['performance', 'efficiency', 'effectiveness', 'productivity'],
+    'distribution': ['distribution', 'allocation', 'spread', 'dispersion', 'arrangement'],
+    'summary': ['summary', 'overview', 'synopsis', 'digest', 'breakdown'],
+    'lifecycle': ['lifecycle', 'life cycle', 'workflow', 'process', 'journey']
   };
   
   // Calculate scores for each visualization
   const scores = Object.values(visualizationLibrary).map((vis: Widget) => {
     let score = 0;
+    const queryLower = query.toLowerCase();
     
-    // Title matching (most important)
+    // 1. Exact title match (highest priority)
+    if (queryLower.includes(vis.title.toLowerCase())) {
+      score += weights.titleMatch * 2;  // Double points for exact title match
+    }
+    
+    // 2. Title word matching
     const titleWords = vis.title.toLowerCase().split(/\s+/);
     titleWords.forEach(word => {
-      if (word.length > 3 && query.includes(word.toLowerCase())) {
-        score += weights.titleMatch;
+      if (word.length > 3 && queryLower.includes(word)) {
+        score += weights.titleWordMatch;
       }
     });
     
-    // Exact title substring match gives bonus points
-    if (query.includes(vis.title.toLowerCase())) {
-      score += weights.titleMatch * 2;
-    }
-    
-    // Keyword matching
+    // 3. Keyword matching
     if (vis.keywords) {
       vis.keywords.forEach(keyword => {
-        if (query.includes(keyword.toLowerCase())) {
+        if (queryLower.includes(keyword.toLowerCase())) {
           score += weights.keywordMatch;
         }
       });
     }
     
-    // Description matching
+    // 4. Description matching
     if (vis.description) {
       const descWords = vis.description.toLowerCase().split(/\s+/);
       descWords.forEach(word => {
-        if (word.length > 3 && query.includes(word.toLowerCase())) {
+        if (word.length > 4 && queryLower.includes(word)) {
           score += weights.descriptionMatch;
         }
       });
     }
     
-    // Context-specific matches (module, data types, etc)
-    if (vis.module && query.includes(vis.module.toLowerCase())) {
+    // 5. Module matching
+    if (vis.module && queryLower.includes(vis.module.toLowerCase())) {
       score += weights.moduleMatch;
     }
     
-    // Special case for charts with specific subject matter
-    if (vis.title.includes("Resource") && query.includes("resource")) {
-      score += weights.titleMatch;
-    }
-    
-    if (vis.title.includes("Failure") && query.includes("failure")) {
-      score += weights.titleMatch;
-    }
-    
-    // Special case for common visualization terms
-    const chartTypes = ["table", "chart", "graph", "heatmap", "pie", "bar", "scatter", "histogram"];
-    chartTypes.forEach(type => {
-      if (query.includes(type) && vis.type.toLowerCase().includes(type)) {
-        score += weights.keywordMatch;
+    // 6. Chart type matching
+    Object.entries(chartTypeMapping).forEach(([type, variations]) => {
+      if (vis.type.toLowerCase().includes(type)) {
+        variations.forEach(term => {
+          if (queryLower.includes(term.toLowerCase())) {
+            score += weights.typeMatch;
+          }
+        });
       }
     });
+    
+    // 7. Domain-specific term matching
+    Object.entries(domainTerms).forEach(([domain, variations]) => {
+      if (vis.title.toLowerCase().includes(domain)) {
+        variations.forEach(term => {
+          if (queryLower.includes(term.toLowerCase())) {
+            score += weights.contextMatch;
+          }
+        });
+      }
+    });
+    
+    // 8. Special cases for common requests
+    
+    // Resource Summary Table specifically
+    if (vis.title === "Resource Summary Table" && 
+        (queryLower.includes("resource") && 
+         (queryLower.includes("summary") || queryLower.includes("table")))) {
+      score += weights.titleMatch * 1.5;
+    }
+    
+    // Failure Pattern Analysis
+    if (vis.title === "Failure Pattern Analysis" && 
+        (queryLower.includes("failure") && queryLower.includes("pattern"))) {
+      score += weights.titleMatch * 1.5;
+    }
+    
+    // Object Type visualization
+    if ((vis.title === "Object Type Interactions" || vis.title === "Object Type Metrics" || vis.title === "Object Type Distribution") && 
+        queryLower.includes("object type")) {
+      score += weights.titleMatch;
+    }
     
     return { visualization: vis, score };
   });
@@ -163,8 +263,12 @@ function performSemanticMatch(query: string): Widget | null {
     console.log(`- "${result.visualization.title}" (Score: ${result.score})`);
   });
   
-  // Return the top match if it has a minimum score threshold
-  if (scores.length > 0 && scores[0].score > 5) {
+  // Return the top match only if it has a reasonable score and significantly outscores the second match
+  if (scores.length > 0 && scores[0].score > 10) {
+    // If there's a second result and it's close in score, log a warning about ambiguity
+    if (scores.length > 1 && scores[0].score - scores[1].score < 5) {
+      console.log("Warning: Top matches are close in score, potential ambiguity");
+    }
     return scores[0].visualization;
   }
   
