@@ -12,6 +12,7 @@ import WeatherCard from '@/components/InfoCards/WeatherCard';
 import NewsCard from '@/components/InfoCards/NewsCard';
 import TimeCard from '@/components/InfoCards/TimeCard';
 import { processQuery } from '@/services/api';
+import { processChartQuery } from '@/services/chart-processing';
 
 const Index = () => {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -132,8 +133,14 @@ const Index = () => {
       let responseText: string;
       let matchedWidgets: any[] = [];
       
-      // Try to get a response from the backend first if it's available
-      if (isBackendAvailable) {
+      // Check for chart title match first
+      const chartWidget = processChartQuery(message);
+      if (chartWidget) {
+        responseText = `Here's the visualization for "${chartWidget.title}":`;
+        matchedWidgets = [chartWidget];
+      }
+      // If no chart match, try backend or fallback
+      else if (isBackendAvailable) {
         const apiResponse = await processQuery(message);
         
         if (apiResponse.data) {
