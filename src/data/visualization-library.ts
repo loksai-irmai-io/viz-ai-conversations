@@ -8,7 +8,7 @@ export const visualizationLibrary: Record<string, Widget> = {
     type: "heatmap",
     title: "Object Type Interactions",
     description: "A heatmap visualizing interaction levels between four object types: Market, Risk, Settlement, and Trade.",
-    module: "data-analysis",
+    module: "outlier-analysis",
     keywords: ["heatmap", "object", "interaction", "intensity"],
     image: "",
     metadata: {
@@ -39,7 +39,7 @@ export const visualizationLibrary: Record<string, Widget> = {
     type: "bar-chart",
     title: "Object Type Metrics",
     description: "A bar chart showing metrics for the object types: Trade, Market, Risk, and Settlement.",
-    module: "data-analysis",
+    module: "outlier-analysis",
     keywords: ["bar chart", "metrics", "object type"],
     image: "",
     metadata: {
@@ -58,7 +58,7 @@ export const visualizationLibrary: Record<string, Widget> = {
     type: "pie-chart",
     title: "Object Type Distribution",
     description: "A pie chart depicting the distribution of object types.",
-    module: "data-analysis",
+    module: "outlier-analysis",
     keywords: ["pie chart", "distribution", "object type"],
     image: "",
     metadata: {
@@ -75,7 +75,7 @@ export const visualizationLibrary: Record<string, Widget> = {
     type: "flowchart-widget", // Custom type for flowchart
     title: "Trade Object Lifecycle",
     description: "A flowchart describing the stages of a trade object's life, including decision points and loops.",
-    module: "process-analysis",
+    module: "process-discovery",
     keywords: ["flowchart", "lifecycle", "trade"],
     image: "",
     metadata: {
@@ -121,7 +121,7 @@ export const visualizationLibrary: Record<string, Widget> = {
     type: "bar-chart",
     title: "Failure Pattern Analysis",
     description: "A bar graph showing Failure Patterns by SOP Pattern (Case Count/Outlier Sum) across 13 SOP patterns.",
-    module: "failure-analysis",
+    module: "outlier-analysis",
     keywords: ["bar chart", "failure", "patterns", "sop"],
     image: "",
     metadata: {
@@ -150,7 +150,7 @@ export const visualizationLibrary: Record<string, Widget> = {
     type: "bar-chart",
     title: "Process Failure Patterns Distribution",
     description: "Bar chart summarizing counts/outlier sums for various failure pattern types.",
-    module: "failure-analysis",
+    module: "outlier-analysis",
     keywords: ["bar chart", "failure", "distribution"],
     image: "",
     metadata: {
@@ -171,7 +171,7 @@ export const visualizationLibrary: Record<string, Widget> = {
     type: "scatter-chart",
     title: "Resource Performance (Avg Step Duration)",
     description: "A scatter plot showing average step duration by resource.",
-    module: "resource-analysis",
+    module: "outlier-analysis",
     keywords: ["scatter plot", "resource", "performance", "duration"],
     image: "",
     metadata: {
@@ -206,7 +206,7 @@ export const visualizationLibrary: Record<string, Widget> = {
     type: "bar-chart",
     title: "Distribution of Time Gaps: Application Submission -> Initial Assessment",
     description: "Histogram showing the time gap distribution between the two activities.",
-    module: "time-analysis",
+    module: "outlier-analysis",
     keywords: ["histogram", "time gaps", "distribution"],
     image: "",
     metadata: {
@@ -231,7 +231,7 @@ export const visualizationLibrary: Record<string, Widget> = {
     type: "scatter-chart",
     title: "Case Complexity Analysis",
     description: "Scatter plot analyzing complexity outliers using Z-score.",
-    module: "complexity-analysis",
+    module: "outlier-analysis",
     keywords: ["scatter plot", "complexity", "z-score"],
     image: "",
     metadata: {
