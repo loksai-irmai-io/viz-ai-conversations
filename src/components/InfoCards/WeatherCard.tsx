@@ -11,15 +11,27 @@ interface WeatherCardProps {
 const WeatherCard: React.FC<WeatherCardProps> = ({ location }) => {
   const [weather, setWeather] = useState(weatherData);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const getWeatherData = async () => {
       setIsLoading(true);
-      const response = await fetchWeather(location);
-      if (response.data) {
-        setWeather(response.data);
+      setError(null);
+      try {
+        const response = await fetchWeather(location);
+        if (response.data) {
+          setWeather(response.data);
+        }
+        if (response.error) {
+          setError(response.error);
+          console.log('Using fallback weather data');
+        }
+      } catch (err) {
+        setError('Failed to load weather data');
+        console.error('Weather card error:', err);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     getWeatherData();
@@ -28,7 +40,7 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ location }) => {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg">Weather</CardTitle>
+        <CardTitle className="text-lg">Weather {location ? `in ${location}` : ''}</CardTitle>
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -43,6 +55,7 @@ const WeatherCard: React.FC<WeatherCardProps> = ({ location }) => {
               <div className="text-2xl font-bold">{weather.temperature}°F</div>
               <div className="text-sm text-gray-500">{weather.condition}</div>
               <div className="text-xs text-gray-500">{weather.location}</div>
+              {error && <div className="text-xs text-amber-500 mt-1">{error}</div>}
             </div>
             <div className="text-right">
               <div className="text-sm">Humidity: {weather.humidity}%</div>

@@ -12,15 +12,27 @@ interface NewsCardProps {
 const NewsCard: React.FC<NewsCardProps> = ({ category }) => {
   const [news, setNews] = useState(newsData);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const getNewsData = async () => {
       setIsLoading(true);
-      const response = await fetchNews(category);
-      if (response.data) {
-        setNews(response.data);
+      setError(null);
+      try {
+        const response = await fetchNews(category);
+        if (response.data) {
+          setNews(response.data);
+        }
+        if (response.error) {
+          setError(response.error);
+          console.log('Using fallback news data');
+        }
+      } catch (err) {
+        setError('Failed to load news data');
+        console.error('News card error:', err);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     getNewsData();
@@ -43,6 +55,7 @@ const NewsCard: React.FC<NewsCardProps> = ({ category }) => {
           </div>
         ) : (
           <div className="space-y-3">
+            {error && <div className="text-xs text-amber-500 mb-2">{error}</div>}
             {news.map((item, index) => (
               <div key={index} className="border-b pb-2 last:border-0 last:pb-0">
                 <a 

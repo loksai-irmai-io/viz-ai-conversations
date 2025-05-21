@@ -72,10 +72,15 @@ const ChartWidget: React.FC<ChartWidgetProps> = ({ widget }) => {
   };
 
   const renderPieChart = () => {
-    // For pie charts, we expect data in a specific format
+    // For pie charts, check if the expected data format is available
+    if (!metadata?.data || !Array.isArray(metadata.data)) {
+      return <div className="text-center p-4 text-gray-500">No pie chart data available</div>;
+    }
+
+    // Ensure each data item has name and value properties
     const data = metadata.data.map((item: any) => ({
-      name: item.name,
-      value: item.value
+      name: item.name || item.category || item.label || "Unknown",
+      value: Number(item.value || 0)
     }));
 
     return (
@@ -466,9 +471,14 @@ const ChartWidget: React.FC<ChartWidgetProps> = ({ widget }) => {
     );
   };
 
-  // New function to render scatter chart
+  // Fixed scatter chart renderer with proper data validation
   const renderScatterChart = () => {
-    if (!metadata.data) return <div>No scatter plot data available</div>;
+    // Validate that we have data for the scatter plot
+    if (!metadata?.data || !Array.isArray(metadata.data) || metadata.data.length === 0) {
+      return <div className="text-center p-4 text-gray-500">No scatter plot data available</div>;
+    }
+    
+    console.log("Scatter chart data:", metadata.data);
     
     // Determine if we need to use multiple scatter series or just one
     const hasMultipleSeries = metadata.series && Array.isArray(metadata.series);
@@ -572,13 +582,13 @@ const ChartWidget: React.FC<ChartWidgetProps> = ({ widget }) => {
       
       {/* Axis Labels */}
       <div className="flex justify-between text-xs text-gray-500">
-        {metadata.xAxis && (
+        {metadata?.xAxis && (
           <div className="text-center w-full">
             {metadata.xAxis}
           </div>
         )}
         
-        {metadata.yAxis && (
+        {metadata?.yAxis && (
           <div className="text-right -rotate-90 origin-center absolute -left-6 top-1/2">
             {metadata.yAxis}
           </div>
@@ -586,7 +596,7 @@ const ChartWidget: React.FC<ChartWidgetProps> = ({ widget }) => {
       </div>
       
       {/* Chart Legend/Info */}
-      {metadata.legend && (
+      {metadata?.legend && (
         <div className="flex flex-wrap gap-2 justify-center">
           {metadata.legend.map((item: string, index: number) => (
             <span 

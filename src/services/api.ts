@@ -19,7 +19,12 @@ export async function fetchWeather(location: string = ''): Promise<ApiResponse<a
     return { data };
   } catch (error) {
     console.error('Error fetching weather data:', error);
-    return { error: 'Failed to fetch weather data. Using mock data instead.' };
+    // Import mock data directly when API fails
+    const { weatherData } = await import('@/data/mock-data');
+    return { 
+      data: weatherData,
+      error: 'Failed to fetch weather data. Using mock data instead.' 
+    };
   }
 }
 
@@ -34,7 +39,12 @@ export async function fetchNews(category: string = ''): Promise<ApiResponse<any>
     return { data };
   } catch (error) {
     console.error('Error fetching news data:', error);
-    return { error: 'Failed to fetch news data. Using mock data instead.' };
+    // Import mock data directly when API fails
+    const { newsData } = await import('@/data/mock-data');
+    return { 
+      data: newsData,
+      error: 'Failed to fetch news data. Using mock data instead.' 
+    };
   }
 }
 
