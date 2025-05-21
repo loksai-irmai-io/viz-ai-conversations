@@ -1,10 +1,11 @@
+
 import React from 'react';
 import { Widget } from '@/data/mock-data';
 import { 
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   RadialBarChart, RadialBar, Treemap, ScatterChart, Scatter, ZAxis,
-  ComposedChart, Area
+  ComposedChart, Area, ReferenceLine
 } from 'recharts';
 import { cn } from '@/lib/utils';
 

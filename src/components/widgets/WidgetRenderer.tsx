@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Widget } from '@/data/mock-data';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -40,14 +39,14 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = ({ widget }) => {
   const renderWidgetIcon = () => {
     const iconClass = "h-5 w-5 mr-2 text-muted-foreground";
     
-    if (widget.type.includes('chart') && widget.type.includes('bar')) {
+    if (widget.type.includes('scatter')) {
+      return <ScatterChart className={iconClass} />;
+    } else if (widget.type.includes('chart') && widget.type.includes('bar')) {
       return <BarChart className={iconClass} />;
     } else if (widget.type.includes('pie')) {
       return <PieChart className={iconClass} />;
     } else if (widget.type.includes('line')) {
       return <LineChart className={iconClass} />;
-    } else if (widget.type.includes('scatter')) {
-      return <ScatterChart className={iconClass} />;
     } else if (widget.type.includes('table')) {
       return <TableIcon className={iconClass} />;
     } else if (widget.type.includes('flowchart')) {
