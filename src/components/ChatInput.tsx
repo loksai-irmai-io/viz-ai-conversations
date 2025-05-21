@@ -9,7 +9,7 @@ import { toast } from '@/components/ui/use-toast';
 
 interface ChatInputProps {
   onSubmit: (message: string) => void;
-  onFileUpload?: (fileName: string) => void;
+  onFileUpload?: (fileName: string, parsedData: any[], columns: string[]) => void;
   isLoading: boolean;
 }
 
@@ -23,9 +23,9 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSubmit, onFileUpload, isLoading
   const { startListening, stopListening, transcript, isListening, error } = useSpeechRecognition();
 
   // Handle file upload
-  const handleFileUpload = (fileName: string) => {
+  const handleFileUpload = (fileName: string, parsedData: any[] = [], columns: string[] = []) => {
     if (onFileUpload) {
-      onFileUpload(fileName);
+      onFileUpload(fileName, parsedData, columns);
     } else {
       setMessage(prev => `Analyze the uploaded file "${fileName}": ${prev}`);
     }
