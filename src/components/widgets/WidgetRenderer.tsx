@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Widget } from '@/data/mock-data';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -12,7 +11,7 @@ import WeatherCard from '../InfoCards/WeatherCard';
 import NewsCard from '../InfoCards/NewsCard';
 import TimeCard from '../InfoCards/TimeCard';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { BookOpen, ChartBar, FileBarChart, FileChart, TableIcon, Layers } from 'lucide-react';
+import { BookOpen, ChartBar, FileBarChart, FileText, TableIcon, Layers } from 'lucide-react';
 
 interface WidgetRendererProps {
   widget: Widget;
@@ -47,7 +46,7 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = ({ widget }) => {
     } else if (widget.type.includes('flowchart')) {
       return <Layers className={iconClass} />;
     } else if (widget.type.includes('map')) {
-      return <FileChart className={iconClass} />;
+      return <FileText className={iconClass} />;
     } else {
       return <FileBarChart className={iconClass} />;
     }
