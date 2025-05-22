@@ -49,8 +49,8 @@ const StreamlitVisualizer: React.FC<StreamlitVisualizerProps> = ({
           const result = await fetchStreamlitVisualizations(requestId);
           
           // Update processing time
-          const currentTime = Math.floor((Date.now() - startTime) / 1000);
-          setProcessingTime(currentTime);
+          const currentProcessingTime = Math.floor((Date.now() - startTime) / 1000);
+          setProcessingTime(currentProcessingTime);
           
           if (result.status === 'completed') {
             // Request completed successfully
@@ -105,7 +105,8 @@ const StreamlitVisualizer: React.FC<StreamlitVisualizerProps> = ({
           console.error("Error polling for results:", error);
           
           // After 15 minutes (900 seconds), stop polling automatically
-          if (currentTime > 900) {
+          const currentProcessingTime = Math.floor((Date.now() - startTime) / 1000);
+          if (currentProcessingTime > 900) {
             setIsPolling(false);
             setIsLoading(false);
             clearInterval(pollInterval);
