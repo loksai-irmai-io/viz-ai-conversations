@@ -12,8 +12,13 @@ import { processQuery } from '@/services/api';
 import { processChartQuery } from '@/services/chart-processing';
 import { generateChartData } from '@/services/csvProcessingService';
 import { getProcessModel, getOutliers, getProcessSummary, generateVisualizationsFromProcessData } from '@/services/processMiningService';
+import { Button } from '@/components/ui/button';
+import { ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Index = () => {
+  const navigate = useNavigate();
+  
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -451,6 +456,17 @@ The data is now ready for visualization. You can request specific visualizations
         <ChatHeader 
           onNewChat={handleNewChat} 
           sessionTitle={activeSession.title} 
+          customActions={
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => navigate('/streamlit')}
+              className="mr-2"
+            >
+              Streamlit Integration
+              <ArrowRight className="h-4 w-4 ml-1" />
+            </Button>
+          }
         />
         
         {/* CSV Visualizer */}
