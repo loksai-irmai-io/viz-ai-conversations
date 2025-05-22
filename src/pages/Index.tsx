@@ -1,15 +1,16 @@
-
 import React, { useState, useEffect } from 'react';
 import ChatHeader from '@/components/ChatHeader';
 import ChatContainer from '@/components/ChatContainer';
 import ChatInput from '@/components/ChatInput';
 import Sidebar from '@/components/Sidebar';
+import CsvVisualizer from '@/components/CsvVisualizer';
 import { Message, Session } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 import { findWidgetsByQuery } from '@/data/mock-data';
 import { toast } from '@/components/ui/use-toast';
 import { processQuery } from '@/services/api';
 import { processChartQuery } from '@/services/chart-processing';
+import { generateChartData } from '@/services/csvProcessingService';
 
 const Index = () => {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -20,6 +21,7 @@ const Index = () => {
   const [uploadedFile, setUploadedFile] = useState<string | null>(null);
   const [csvData, setCsvData] = useState<any[]>([]);
   const [csvColumns, setCsvColumns] = useState<string[]>([]);
+  const [showVisualizer, setShowVisualizer] = useState(false);
   
   // Get the active session or create a new one
   const activeSession = sessions.find((s) => s.id === activeSessionId) || {
@@ -93,6 +95,7 @@ const Index = () => {
     setUploadedFile(null); // Clear uploaded file when starting a new chat
     setCsvData([]);
     setCsvColumns([]);
+    setShowVisualizer(false);
   };
   
   const handleSelectSession = (sessionId: string) => {
@@ -104,6 +107,7 @@ const Index = () => {
     setUploadedFile(fileName);
     setCsvData(parsedData);
     setCsvColumns(columns);
+    setShowVisualizer(true);
     
     // Add system message about file upload
     if (activeSessionId) {
@@ -115,7 +119,7 @@ const Index = () => {
 - ${columns.length} columns
 - Columns: ${columns.join(', ')}
 
-The data is now ready for visualization. You can request specific visualizations by name.`,
+The data is now ready for visualization. You can request specific visualizations by name or view the automatic visualizations in the CSV analyzer above.`,
         timestamp: new Date()
       };
       
@@ -141,114 +145,20 @@ The data is now ready for visualization. You can request specific visualizations
     // Create appropriate chart type based on title
     const titleLower = title.toLowerCase();
     
-    // Common chart settings
-    const chartBase = {
-      id: `csv-chart-${Date.now()}`,
-      title: title,
-      description: `Visualization from uploaded CSV: ${uploadedFile}`,
-    };
-    
-    // Default to column headers for axes and first 20 rows of data for demonstration
-    const dataToUse = csvData.slice(0, Math.min(20, csvData.length));
-    
-    if (titleLower.includes('scatter') || titleLower.includes('plot')) {
-      // Scatter plot - needs x and y coordinates
-      const xKey = csvColumns[0];
-      const yKey = csvColumns[1];
-      
-      return {
-        ...chartBase,
-        type: 'scatter-chart',
-        metadata: {
-          xAxisLabel: xKey,
-          yAxisLabel: yKey,
-          data: dataToUse.map((row) => ({
-            x: parseFloat(row[xKey]) || 0,
-            y: parseFloat(row[yKey]) || 0
-          }))
-        }
-      };
+    if (titleLower.includes('scatter')) {
+      return generateChartData(csvData, csvColumns, 'scatter');
     } else if (titleLower.includes('bar')) {
-      // Bar chart
-      const categoryKey = csvColumns[0];
-      const valueKey = csvColumns[1];
-      
-      return {
-        ...chartBase,
-        type: 'bar-chart',
-        metadata: {
-          xAxis: categoryKey,
-          yAxis: valueKey,
-          data: dataToUse.map((row) => ({
-            [categoryKey]: row[categoryKey],
-            [valueKey]: parseFloat(row[valueKey]) || 0
-          }))
-        }
-      };
+      return generateChartData(csvData, csvColumns, 'bar');
     } else if (titleLower.includes('line')) {
-      // Line chart
-      const categoryKey = csvColumns[0];
-      const valueKeys = csvColumns.slice(1, 3); // Take up to 2 value columns
-      
-      return {
-        ...chartBase,
-        type: 'line-chart',
-        metadata: {
-          xAxis: categoryKey,
-          data: dataToUse.map((row) => {
-            const dataPoint: any = {
-              [categoryKey]: row[categoryKey]
-            };
-            valueKeys.forEach(key => {
-              dataPoint[key] = parseFloat(row[key]) || 0;
-            });
-            return dataPoint;
-          })
-        }
-      };
+      return generateChartData(csvData, csvColumns, 'line');
     } else if (titleLower.includes('pie') || titleLower.includes('distribution')) {
-      // Pie chart
-      const nameKey = csvColumns[0];
-      const valueKey = csvColumns[1];
-      
-      return {
-        ...chartBase,
-        type: 'pie-chart',
-        metadata: {
-          data: dataToUse.map((row) => ({
-            name: row[nameKey],
-            value: parseFloat(row[valueKey]) || 0
-          }))
-        }
-      };
+      return generateChartData(csvData, csvColumns, 'pie');
     } else if (titleLower.includes('table')) {
-      // Data table
-      return {
-        ...chartBase,
-        type: 'data-table',
-        metadata: {
-          columns: csvColumns.map(col => ({ key: col, header: col })),
-          data: dataToUse
-        }
-      };
+      return generateChartData(csvData, csvColumns, 'data-table');
     }
     
     // Default to bar chart if no specific type is detected
-    const categoryKey = csvColumns[0];
-    const valueKey = csvColumns[1];
-    
-    return {
-      ...chartBase,
-      type: 'bar-chart',
-      metadata: {
-        xAxis: categoryKey,
-        yAxis: valueKey,
-        data: dataToUse.map((row) => ({
-          [categoryKey]: row[categoryKey],
-          [valueKey]: parseFloat(row[valueKey]) || 0
-        }))
-      }
-    };
+    return generateChartData(csvData, csvColumns, 'bar');
   };
   
   const handleSubmit = async (message: string) => {
@@ -480,6 +390,18 @@ The data is now ready for visualization. You can request specific visualizations
           onNewChat={handleNewChat} 
           sessionTitle={activeSession.title} 
         />
+        
+        {/* CSV Visualizer */}
+        {showVisualizer && uploadedFile && csvData.length > 0 && (
+          <div className="px-4 py-4 overflow-y-auto">
+            <CsvVisualizer 
+              fileName={uploadedFile}
+              data={csvData}
+              columns={csvColumns}
+            />
+          </div>
+        )}
+        
         <ChatContainer 
           messages={activeSession.messages} 
           isLoading={isLoading} 
