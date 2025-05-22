@@ -31,7 +31,7 @@ const StreamlitPage = () => {
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       <ChatHeader 
-        sessionTitle="Streamlit Integration" 
+        sessionTitle="Data Visualization Studio" 
         customActions={
           <Button 
             variant="outline" 
@@ -48,9 +48,9 @@ const StreamlitPage = () => {
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="max-w-5xl mx-auto">
           <div className="mb-6">
-            <h1 className="text-2xl font-bold">Streamlit Analysis Pipeline</h1>
+            <h1 className="text-2xl font-bold">Interactive Data Analysis</h1>
             <p className="text-muted-foreground">
-              Process data through our optimized Streamlit pipeline with real-time visualization updates
+              Upload your CSV file to explore summary statistics and visualize the data. Scatter plots and charts will automatically be generated based on the detected numerical features.
             </p>
           </div>
 
@@ -66,27 +66,27 @@ const StreamlitPage = () => {
           )}
           
           <div className="mt-8 bg-muted rounded-lg p-4">
-            <h2 className="text-lg font-medium mb-2">About the Optimized Pipeline</h2>
+            <h2 className="text-lg font-medium mb-2">How It Works</h2>
             <p className="text-sm mb-4">
-              This interface provides access to our Streamlit analysis pipeline with significant optimizations:
+              Our analysis process intelligently processes your data through these steps:
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-card p-4 rounded-md border">
-                <h3 className="font-medium mb-1">Asynchronous Processing</h3>
+                <h3 className="font-medium mb-1">Smart Column Detection</h3>
                 <p className="text-xs text-muted-foreground">
-                  Analysis runs in the background, delivering results as they become available
+                  We automatically identify numerical columns for visualization and analyze data types for the best chart selection
                 </p>
               </div>
               <div className="bg-card p-4 rounded-md border">
-                <h3 className="font-medium mb-1">Intelligent Caching</h3>
+                <h3 className="font-medium mb-1">Real-time Processing</h3>
                 <p className="text-xs text-muted-foreground">
-                  Similar requests are cached to provide instant results when possible
+                  See initial results immediately while more complex visualizations are processed in the background
                 </p>
               </div>
               <div className="bg-card p-4 rounded-md border">
-                <h3 className="font-medium mb-1">Real-time Updates</h3>
+                <h3 className="font-medium mb-1">Meaningful Insights</h3>
                 <p className="text-xs text-muted-foreground">
-                  Visualizations appear incrementally as they're processed, no need to wait for everything
+                  Get statistical summaries, identify outliers, and view relationships between your data variables
                 </p>
               </div>
             </div>

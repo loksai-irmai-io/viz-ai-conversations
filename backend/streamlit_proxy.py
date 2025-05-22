@@ -9,6 +9,8 @@ import base64
 import json
 from io import BytesIO
 import uuid
+import pandas as pd
+import numpy as np
 from werkzeug.utils import secure_filename
 
 # Configure logging
@@ -42,6 +44,7 @@ class StreamlitProcessingTask:
         self.error = None
         self.thread = None
         self.cancelled = False
+        self.csv_data = None
     
     def start(self):
         self.thread = threading.Thread(target=self.process)
@@ -60,6 +63,17 @@ class StreamlitProcessingTask:
             else:
                 # File uploads typically take 10-15 minutes
                 self.estimated_completion_time = self.start_time + (10 * 60)
+                
+                # For file uploads, try to read the CSV data
+                if self.request_type == 'file':
+                    try:
+                        file_path = os.path.join(CACHE_DIR, f"{self.request_id}_{self.content}")
+                        if os.path.exists(file_path):
+                            self.csv_data = pd.read_csv(file_path)
+                            logger.info(f"Successfully read CSV with {len(self.csv_data)} rows, {len(self.csv_data.columns)} columns")
+                    except Exception as e:
+                        logger.error(f"Error reading CSV file: {str(e)}")
+                        # Continue anyway, we'll use mock data
             
             # Save initial state
             self.save_state()
@@ -112,14 +126,117 @@ class StreamlitProcessingTask:
         # Add some visualization data based on the step
         if step > 1:
             # Start adding visualizations from step 2
-            chart_type = ["bar", "line", "scatter", "pie", "table"][step % 5]
-            result["visualization"] = {
-                "type": chart_type,
-                "title": f"Analysis {step} ({chart_type.capitalize()} Chart)",
-                "data": self.generate_mock_data(chart_type)
-            }
+            chart_types = ["bar", "line", "scatter", "pie", "table"]
+            chart_type = chart_types[step % len(chart_types)]
+            
+            if self.csv_data is not None:
+                # Use actual CSV data for visualizations
+                result["visualization"] = self.generate_visualization_from_csv(chart_type, step)
+            else:
+                # Use mock data
+                result["visualization"] = {
+                    "type": chart_type,
+                    "title": f"Analysis {step} ({chart_type.capitalize()} Chart)",
+                    "data": self.generate_mock_data(chart_type)
+                }
         
         return result
+    
+    def generate_visualization_from_csv(self, chart_type, step):
+        """Generate visualization based on actual CSV data"""
+        try:
+            df = self.csv_data
+            
+            # Get numerical columns for visualizations
+            num_cols = df.select_dtypes(include=['number']).columns.tolist()
+            if len(num_cols) < 1:
+                return self.generate_mock_data(chart_type)
+            
+            # Get categorical columns for bar charts and pie charts
+            cat_cols = df.select_dtypes(include=['object']).columns.tolist()
+            
+            if chart_type == "bar" and len(cat_cols) > 0 and len(num_cols) > 0:
+                # Bar chart using categorical and numerical columns
+                cat_col = cat_cols[0]
+                num_col = num_cols[0]
+                
+                # Group by category and calculate mean
+                grouped = df.groupby(cat_col)[num_col].mean().reset_index()
+                grouped = grouped.sort_values(num_col, ascending=False).head(10)  # Top 10
+                
+                return {
+                    "type": "bar",
+                    "title": f"Average {num_col} by {cat_col}",
+                    "data": [{"name": str(row[cat_col]), "value": float(row[num_col])} for _, row in grouped.iterrows()]
+                }
+                
+            elif chart_type == "line" and len(num_cols) > 0:
+                # Line chart using first numerical column
+                num_col = num_cols[0]
+                
+                # Sort by index and plot the trend
+                sorted_df = df.sort_index().reset_index().head(50)  # Limit to 50 points
+                
+                return {
+                    "type": "line",
+                    "title": f"Trend of {num_col}",
+                    "data": [{"name": str(i), "value": float(val)} for i, val in enumerate(sorted_df[num_col])]
+                }
+                
+            elif chart_type == "scatter" and len(num_cols) >= 2:
+                # Scatter plot using first two numerical columns
+                x_col = num_cols[0]
+                y_col = num_cols[1]
+                
+                # Sample to avoid too many points
+                sampled_df = df.sample(min(50, len(df)))
+                
+                return {
+                    "type": "scatter",
+                    "title": f"{x_col} vs {y_col}",
+                    "data": [{"x": float(row[x_col]), "y": float(row[y_col])} for _, row in sampled_df.iterrows()]
+                }
+                
+            elif chart_type == "pie" and len(cat_cols) > 0:
+                # Pie chart using first categorical column
+                cat_col = cat_cols[0]
+                
+                # Count values
+                counts = df[cat_col].value_counts().reset_index().head(7)  # Top 7 categories
+                
+                return {
+                    "type": "pie",
+                    "title": f"Distribution of {cat_col}",
+                    "data": [{"name": str(row['index']), "value": int(row[cat_col])} for _, row in counts.iterrows()]
+                }
+                
+            elif chart_type == "table":
+                # Data table showing summary statistics
+                summary = []
+                
+                for col in num_cols[:5]:  # Limit to 5 columns
+                    summary.append({
+                        "column": col,
+                        "mean": float(df[col].mean()),
+                        "std": float(df[col].std()),
+                        "min": float(df[col].min()),
+                        "max": float(df[col].max())
+                    })
+                
+                return {
+                    "type": "table",
+                    "title": "Summary Statistics",
+                    "columns": ["column", "mean", "std", "min", "max"],
+                    "data": summary
+                }
+                
+            else:
+                # Fallback to mock data
+                return self.generate_mock_data(chart_type)
+                
+        except Exception as e:
+            logger.error(f"Error generating CSV visualization: {str(e)}")
+            return self.generate_mock_data(chart_type)
     
     def generate_mock_data(self, chart_type):
         """Generate mock data for visualizations"""
@@ -130,12 +247,13 @@ class StreamlitProcessingTask:
                 {"name": "Category A", "value": random.randint(10, 100)},
                 {"name": "Category B", "value": random.randint(10, 100)},
                 {"name": "Category C", "value": random.randint(10, 100)},
-                {"name": "Category D", "value": random.randint(10, 100)}
+                {"name": "Category D", "value": random.randint(10, 100)},
+                {"name": "Category E", "value": random.randint(10, 100)}
             ]
         elif chart_type == "scatter":
             return [
-                {"x": random.randint(10, 100), "y": random.randint(10, 100)} 
-                for _ in range(20)
+                {"x": random.randint(10, 100), "y": random.randint(10, 100), "name": f"Point {i+1}"} 
+                for i in range(20)
             ]
         elif chart_type == "pie":
             return [
@@ -329,7 +447,7 @@ def convert_results_to_visualizations(results):
             if viz['type'] == 'bar':
                 visualizations.append({
                     "id": f"streamlit-viz-{len(visualizations)}",
-                    "title": viz['title'],
+                    "title": viz.get('title', 'Bar Chart'),
                     "description": "Generated from Streamlit processing pipeline",
                     "type": "bar-chart",
                     "metadata": {
@@ -341,7 +459,7 @@ def convert_results_to_visualizations(results):
             elif viz['type'] == 'line':
                 visualizations.append({
                     "id": f"streamlit-viz-{len(visualizations)}",
-                    "title": viz['title'],
+                    "title": viz.get('title', 'Line Chart'),
                     "description": "Generated from Streamlit processing pipeline",
                     "type": "line-chart",
                     "metadata": {
@@ -353,7 +471,7 @@ def convert_results_to_visualizations(results):
             elif viz['type'] == 'scatter':
                 visualizations.append({
                     "id": f"streamlit-viz-{len(visualizations)}",
-                    "title": viz['title'],
+                    "title": viz.get('title', 'Scatter Plot'),
                     "description": "Generated from Streamlit processing pipeline",
                     "type": "scatter-chart",
                     "metadata": {
@@ -365,7 +483,7 @@ def convert_results_to_visualizations(results):
             elif viz['type'] == 'pie':
                 visualizations.append({
                     "id": f"streamlit-viz-{len(visualizations)}",
-                    "title": viz['title'],
+                    "title": viz.get('title', 'Pie Chart'),
                     "description": "Generated from Streamlit processing pipeline",
                     "type": "pie-chart",
                     "metadata": {
@@ -373,20 +491,35 @@ def convert_results_to_visualizations(results):
                     }
                 })
             elif viz['type'] == 'table':
-                visualizations.append({
-                    "id": f"streamlit-viz-{len(visualizations)}",
-                    "title": viz['title'],
-                    "description": "Generated from Streamlit processing pipeline",
-                    "type": "data-table",
-                    "metadata": {
-                        "columns": [
-                            { "key": "id", "header": "ID" },
-                            { "key": "name", "header": "Name" },
-                            { "key": "value", "header": "Value" }
-                        ],
-                        "data": viz['data']
-                    }
-                })
+                if 'columns' in viz and 'data' in viz:
+                    # Handle table with columns defined
+                    columns = [{"key": col, "header": col.capitalize()} for col in viz['columns']]
+                    visualizations.append({
+                        "id": f"streamlit-viz-{len(visualizations)}",
+                        "title": viz.get('title', 'Data Table'),
+                        "description": "Generated from Streamlit processing pipeline",
+                        "type": "data-table",
+                        "metadata": {
+                            "columns": columns,
+                            "data": viz['data']
+                        }
+                    })
+                else:
+                    # Handle simple table
+                    visualizations.append({
+                        "id": f"streamlit-viz-{len(visualizations)}",
+                        "title": viz.get('title', 'Data Table'),
+                        "description": "Generated from Streamlit processing pipeline",
+                        "type": "data-table",
+                        "metadata": {
+                            "columns": [
+                                { "key": "id", "header": "ID" },
+                                { "key": "name", "header": "Name" },
+                                { "key": "value", "header": "Value" }
+                            ],
+                            "data": viz['data']
+                        }
+                    })
     
     return visualizations
 
@@ -394,9 +527,16 @@ def generate_mock_streamlit_images(count=1):
     """Generate mock Streamlit screenshot URLs"""
     images = []
     
-    for i in range(min(count, 3)):  # Limit to max 3 images
+    titles = [
+        "Data Summary Statistics", 
+        "Feature Correlation Heatmap", 
+        "Outlier Detection Analysis", 
+        "Distribution Analysis"
+    ]
+    
+    for i in range(min(count, len(titles))):
         # In a real implementation, these would be actual screenshot URLs
-        images.append(f"https://via.placeholder.com/1200x800.png?text=Streamlit+View+{i+1}")
+        images.append(f"https://via.placeholder.com/1200x800.png?text={titles[i].replace(' ', '+')}")
     
     return images
 

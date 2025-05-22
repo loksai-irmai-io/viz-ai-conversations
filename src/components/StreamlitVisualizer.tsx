@@ -167,6 +167,7 @@ const StreamlitVisualizer: React.FC<StreamlitVisualizerProps> = ({
     const allData = {
       requestId,
       prompt,
+      csvFileName,
       visualizations,
       timestamp: new Date().toISOString(),
     };
@@ -176,7 +177,9 @@ const StreamlitVisualizer: React.FC<StreamlitVisualizerProps> = ({
     
     const link = document.createElement('a');
     link.href = url;
-    link.download = `streamlit-results-${requestId}.json`;
+    link.download = csvFileName 
+      ? `streamlit-${csvFileName}-results.json` 
+      : `streamlit-results-${requestId}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -197,7 +200,7 @@ const StreamlitVisualizer: React.FC<StreamlitVisualizerProps> = ({
               Ready to process your data
             </p>
             <p className="text-muted-foreground text-sm mt-2">
-              Get powerful Streamlit visualizations without the wait
+              Upload your CSV file to explore summary statistics and visualize the data. Scatter plots and charts will automatically be generated based on the detected numerical features.
             </p>
           </div>
         </CardContent>
@@ -300,8 +303,8 @@ const StreamlitVisualizer: React.FC<StreamlitVisualizerProps> = ({
                 </p>
                 <p className="text-muted-foreground text-sm mt-2">
                   {isLoading ? 
-                    "We're processing your data. This might take some time." : 
-                    "Try uploading a different file or entering a new prompt."}
+                    "We're analyzing your data and identifying the best visualizations based on your dataset's features." : 
+                    "Try uploading a different file or entering a new prompt with more specific analysis requirements."}
                 </p>
               </div>
             )}
@@ -339,8 +342,8 @@ const StreamlitVisualizer: React.FC<StreamlitVisualizerProps> = ({
                 </p>
                 <p className="text-muted-foreground text-sm mt-2">
                   {isLoading ? 
-                    "We're capturing Streamlit views from your data. This might take some time." : 
-                    "Once processing is complete, Streamlit screenshots will appear here."}
+                    "We're generating interactive Streamlit views based on your data's statistical properties." : 
+                    "Once processing is complete, Streamlit screenshots will appear here showing detailed data analysis."}
                 </p>
               </div>
             )}
@@ -379,28 +382,34 @@ const StreamlitVisualizer: React.FC<StreamlitVisualizerProps> = ({
               </div>
               
               <div className="border rounded-lg p-4">
-                <h3 className="text-lg font-medium mb-4">Performance Optimization</h3>
+                <h3 className="text-lg font-medium mb-4">Data Analysis Process</h3>
                 <p className="text-sm text-muted-foreground mb-2">
-                  We're using several techniques to speed up the processing:
+                  Your data is being processed through these steps:
                 </p>
                 <ul className="space-y-2 text-sm">
                   <li className="flex items-start">
                     <div className="h-5 w-5 rounded-full bg-green-100 text-green-800 flex items-center justify-center text-xs mr-2 mt-0.5">
-                      ✓
+                      1
                     </div>
-                    <span>Asynchronous processing with partial results delivery</span>
+                    <span>Data validation and column type detection</span>
                   </li>
                   <li className="flex items-start">
                     <div className="h-5 w-5 rounded-full bg-green-100 text-green-800 flex items-center justify-center text-xs mr-2 mt-0.5">
-                      ✓
+                      2
                     </div>
-                    <span>Intelligent caching of similar requests</span>
+                    <span>Statistical summary generation (mean, median, outliers)</span>
                   </li>
                   <li className="flex items-start">
                     <div className="h-5 w-5 rounded-full bg-green-100 text-green-800 flex items-center justify-center text-xs mr-2 mt-0.5">
-                      ✓
+                      3
                     </div>
-                    <span>Parallel processing of independent visualizations</span>
+                    <span>Automatic chart selection based on identified data patterns</span>
+                  </li>
+                  <li className="flex items-start">
+                    <div className="h-5 w-5 rounded-full bg-green-100 text-green-800 flex items-center justify-center text-xs mr-2 mt-0.5">
+                      4
+                    </div>
+                    <span>Chart rendering with proper numerical column selection</span>
                   </li>
                 </ul>
               </div>
@@ -412,7 +421,7 @@ const StreamlitVisualizer: React.FC<StreamlitVisualizerProps> = ({
       {isLoading && (
         <CardFooter className="border-t pt-4">
           <p className="text-sm text-muted-foreground">
-            Your data is being processed. While you wait, partial results will appear as they become available.
+            Your data is being processed. Numerical columns are automatically detected to create accurate visualizations.
           </p>
         </CardFooter>
       )}

@@ -1,4 +1,3 @@
-
 import { toast } from '@/components/ui/use-toast';
 
 const STREAMLIT_API_URL = 'http://34.45.239.136:8501/api';
@@ -213,12 +212,42 @@ export async function cancelStreamlitRequest(requestId: string): Promise<boolean
   }
 }
 
+// Mock CSV data for different types of charts
+function generateMockCsvData() {
+  return {
+    numericalColumns: [
+      { name: 'price', type: 'numeric' },
+      { name: 'quantity', type: 'numeric' },
+      { name: 'rating', type: 'numeric' },
+      { name: 'temperature', type: 'numeric' }
+    ],
+    categoricalColumns: [
+      { name: 'product', type: 'categorical' },
+      { name: 'region', type: 'categorical' },
+      { name: 'category', type: 'categorical' }
+    ],
+    rows: Array.from({ length: 50 }, (_, i) => ({
+      id: i + 1,
+      product: ['Widget A', 'Widget B', 'Widget C', 'Widget D'][Math.floor(Math.random() * 4)],
+      price: 10 + Math.random() * 90,
+      quantity: Math.floor(Math.random() * 100),
+      rating: 1 + Math.random() * 4,
+      temperature: 60 + Math.random() * 40,
+      region: ['North', 'South', 'East', 'West'][Math.floor(Math.random() * 4)],
+      category: ['Category A', 'Category B', 'Category C'][Math.floor(Math.random() * 3)]
+    }))
+  };
+}
+
 // Mock visualization fetching for development purposes
 async function mockFetchVisualizations(requestId: string): Promise<StreamlitVisualizationResult> {
   // Extract timestamp from requestId to track progress
   const timestamp = parseInt(requestId.split('-')[1] || '0');
   const elapsedSeconds = (Date.now() - timestamp) / 1000;
   
+  // Initialize a mock CSV data object
+  const csvData = generateMockCsvData();
+
   // Simulate different stages of processing
   if (elapsedSeconds < 20) {
     // First 20 seconds - just processing
@@ -231,9 +260,9 @@ async function mockFetchVisualizations(requestId: string): Promise<StreamlitVisu
     return {
       status: 'processing',
       estimatedTimeRemaining: requestId.startsWith('file') ? 600 - elapsedSeconds : 300 - elapsedSeconds,
-      partialVisualizations: generateMockVisualizations(1, 2),
+      partialVisualizations: generateMockVisualizations(1, 2, csvData),
       streamlitImages: [
-        'https://via.placeholder.com/1200x800.png?text=Streamlit+View+(Loading)'
+        'https://via.placeholder.com/1200x800.png?text=Data+Summary+Statistics+(Processing)'
       ]
     };
   } else if (elapsedSeconds < 60) {
@@ -241,109 +270,213 @@ async function mockFetchVisualizations(requestId: string): Promise<StreamlitVisu
     return {
       status: 'processing',
       estimatedTimeRemaining: requestId.startsWith('file') ? 600 - elapsedSeconds : 300 - elapsedSeconds,
-      partialVisualizations: generateMockVisualizations(2, 4),
+      partialVisualizations: generateMockVisualizations(3, 4, csvData),
       streamlitImages: [
-        'https://via.placeholder.com/1200x800.png?text=Streamlit+View+1+(Processing)',
-        'https://via.placeholder.com/1200x800.png?text=Streamlit+View+2+(Processing)'
+        'https://via.placeholder.com/1200x800.png?text=Data+Summary+Statistics+(Processing)',
+        'https://via.placeholder.com/1200x800.png?text=Feature+Correlation+Heatmap+(Processing)'
       ]
     };
   } else {
     // After 60 seconds - complete
     return {
       status: 'completed',
-      visualizations: generateMockVisualizations(4, 6),
+      visualizations: generateMockVisualizations(5, 6, csvData),
       streamlitImages: [
-        'https://via.placeholder.com/1200x800.png?text=Streamlit+View+1+(Complete)',
-        'https://via.placeholder.com/1200x800.png?text=Streamlit+View+2+(Complete)',
-        'https://via.placeholder.com/1200x800.png?text=Streamlit+View+3+(Complete)'
+        'https://via.placeholder.com/1200x800.png?text=Data+Summary+Statistics+(Complete)',
+        'https://via.placeholder.com/1200x800.png?text=Feature+Correlation+Heatmap+(Complete)',
+        'https://via.placeholder.com/1200x800.png?text=Outlier+Detection+Analysis+(Complete)'
       ]
     };
   }
 }
 
-// Generate mock visualizations for development
-function generateMockVisualizations(min: number, max: number): any[] {
+// Generate mock visualizations using the CSV data
+function generateMockVisualizations(min: number, max: number, csvData: any): any[] {
   const visualizations = [];
   const count = Math.floor(Math.random() * (max - min + 1)) + min;
   
-  const vizTypes = ['bar-chart', 'line-chart', 'scatter-chart', 'pie-chart', 'data-table'];
+  // First, add a data summary widget
+  visualizations.push({
+    id: 'data-summary',
+    title: 'CSV Data Summary',
+    description: 'Overview of numerical and categorical columns',
+    type: 'data-table',
+    metadata: {
+      columns: [
+        { key: 'column', header: 'Column Name' },
+        { key: 'type', header: 'Type' },
+        { key: 'count', header: 'Count' },
+        { key: 'unique', header: 'Unique Values' },
+        { key: 'missing', header: 'Missing Values' }
+      ],
+      data: [
+        ...csvData.numericalColumns.map(col => ({
+          column: col.name,
+          type: 'Numerical',
+          count: csvData.rows.length,
+          unique: new Set(csvData.rows.map(row => row[col.name])).size,
+          missing: 0
+        })),
+        ...csvData.categoricalColumns.map(col => ({
+          column: col.name,
+          type: 'Categorical',
+          count: csvData.rows.length,
+          unique: new Set(csvData.rows.map(row => row[col.name])).size,
+          missing: 0
+        }))
+      ]
+    }
+  });
   
-  for (let i = 0; i < count; i++) {
-    const vizType = vizTypes[Math.floor(Math.random() * vizTypes.length)];
+  // Then add numerical statistics for the first numerical column
+  if (csvData.numericalColumns.length > 0) {
+    const firstNumCol = csvData.numericalColumns[0].name;
+    const values = csvData.rows.map(row => row[firstNumCol]);
     
     visualizations.push({
-      id: `streamlit-viz-${i}`,
-      title: `Streamlit ${formatVizType(vizType)} ${i + 1}`,
-      description: `Generated from Streamlit processing pipeline`,
-      type: vizType,
-      metadata: generateMockMetadata(vizType)
+      id: `${firstNumCol}-stats`,
+      title: `${firstNumCol} Statistics`,
+      description: `Statistical summary of ${firstNumCol}`,
+      type: 'info-card-medium',
+      metadata: {
+        stats: [
+          { 
+            name: 'Mean', 
+            value: values.reduce((a, b) => a + b, 0) / values.length,
+            format: '0.00'
+          },
+          { 
+            name: 'Min', 
+            value: Math.min(...values),
+            format: '0.00'
+          },
+          { 
+            name: 'Max', 
+            value: Math.max(...values),
+            format: '0.00'
+          },
+          { 
+            name: 'Median', 
+            value: values.sort((a, b) => a - b)[Math.floor(values.length / 2)],
+            format: '0.00'
+          }
+        ]
+      }
     });
   }
   
-  return visualizations;
-}
-
-function formatVizType(type: string): string {
-  return type.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-}
-
-function generateMockMetadata(type: string): any {
-  switch (type) {
-    case 'bar-chart':
-      return {
-        xAxisLabel: 'Category',
-        yAxisLabel: 'Value',
-        data: [
-          { name: 'Category A', value: Math.floor(Math.random() * 100) },
-          { name: 'Category B', value: Math.floor(Math.random() * 100) },
-          { name: 'Category C', value: Math.floor(Math.random() * 100) },
-          { name: 'Category D', value: Math.floor(Math.random() * 100) },
-          { name: 'Category E', value: Math.floor(Math.random() * 100) }
-        ]
-      };
-    case 'line-chart':
-      return {
-        xAxisLabel: 'Time',
-        yAxisLabel: 'Value',
-        data: Array.from({ length: 10 }, (_, i) => ({
-          name: `Day ${i + 1}`,
-          value: Math.floor(Math.random() * 100)
-        }))
-      };
-    case 'scatter-chart':
-      return {
-        xAxisLabel: 'X Value',
-        yAxisLabel: 'Y Value',
-        data: Array.from({ length: 20 }, () => ({
-          x: Math.floor(Math.random() * 100),
-          y: Math.floor(Math.random() * 100)
-        }))
-      };
-    case 'pie-chart':
-      return {
-        data: [
-          { name: 'Category A', value: Math.floor(Math.random() * 100) },
-          { name: 'Category B', value: Math.floor(Math.random() * 100) },
-          { name: 'Category C', value: Math.floor(Math.random() * 100) },
-          { name: 'Category D', value: Math.floor(Math.random() * 100) }
-        ]
-      };
-    case 'data-table':
-      return {
-        columns: [
-          { key: 'id', header: 'ID' },
-          { key: 'name', header: 'Name' },
-          { key: 'value', header: 'Value' },
-          { key: 'category', header: 'Category' }
-        ],
-        data: Array.from({ length: 5 }, (_, i) => ({
-          id: i + 1,
-          name: `Item ${i + 1}`,
-          value: Math.floor(Math.random() * 1000),
-          category: ['A', 'B', 'C'][Math.floor(Math.random() * 3)]
-        }))
-      };
-    default:
-      return {};
+  // Add different chart types based on the CSV data
+  const vizTypes = [
+    { type: 'bar-chart', title: 'Distribution by Category' },
+    { type: 'line-chart', title: 'Trend Analysis' },
+    { type: 'scatter-chart', title: 'Correlation Plot' },
+    { type: 'pie-chart', title: 'Proportion Analysis' }
+  ];
+  
+  for (let i = 0; i < Math.min(count - 2, vizTypes.length); i++) {
+    const vizType = vizTypes[i];
+    
+    if (vizType.type === 'scatter-chart' && csvData.numericalColumns.length >= 2) {
+      // Create a scatter plot with two numerical columns
+      const xCol = csvData.numericalColumns[0].name;
+      const yCol = csvData.numericalColumns[1].name;
+      
+      visualizations.push({
+        id: `streamlit-viz-${i}`,
+        title: `${xCol} vs ${yCol} ${vizType.title}`,
+        description: `Showing relationship between ${xCol} and ${yCol}`,
+        type: vizType.type,
+        metadata: {
+          xAxisLabel: xCol,
+          yAxisLabel: yCol,
+          data: csvData.rows.map(row => ({
+            x: row[xCol],
+            y: row[yCol],
+            name: row.product || row.id
+          }))
+        }
+      });
+    } else if (vizType.type === 'bar-chart' && csvData.categoricalColumns.length > 0) {
+      // Create a bar chart with categorical column
+      const catCol = csvData.categoricalColumns[0].name;
+      const numCol = csvData.numericalColumns[0].name;
+      
+      // Group by category and calculate average
+      const categories = [...new Set(csvData.rows.map(row => row[catCol]))];
+      const data = categories.map(cat => {
+        const filteredRows = csvData.rows.filter(row => row[catCol] === cat);
+        const avgValue = filteredRows.reduce((sum, row) => sum + row[numCol], 0) / filteredRows.length;
+        
+        return {
+          name: cat,
+          value: avgValue
+        };
+      });
+      
+      visualizations.push({
+        id: `streamlit-viz-${i}`,
+        title: `Average ${numCol} by ${catCol}`,
+        description: `Bar chart showing average ${numCol} for each ${catCol}`,
+        type: vizType.type,
+        metadata: {
+          xAxisLabel: catCol,
+          yAxisLabel: `Average ${numCol}`,
+          data: data
+        }
+      });
+    } else if (vizType.type === 'line-chart' && csvData.numericalColumns.length > 1) {
+      // Create a line chart showing a trend
+      const numCol = csvData.numericalColumns[0].name;
+      const secondNumCol = csvData.numericalColumns[1].name;
+      
+      // Sort rows by ID for a meaningful trend
+      const sortedRows = [...csvData.rows].sort((a, b) => a.id - b.id);
+      
+      visualizations.push({
+        id: `streamlit-viz-${i}`,
+        title: `${numCol} and ${secondNumCol} Trend`,
+        description: `Line chart showing the trend of ${numCol} and ${secondNumCol}`,
+        type: vizType.type,
+        metadata: {
+          xAxisLabel: 'Index',
+          yAxisLabel: 'Value',
+          series: [
+            {
+              name: numCol,
+              data: sortedRows.map((row, index) => ({ name: index, value: row[numCol] }))
+            },
+            {
+              name: secondNumCol,
+              data: sortedRows.map((row, index) => ({ name: index, value: row[secondNumCol] }))
+            }
+          ]
+        }
+      });
+    } else if (vizType.type === 'pie-chart' && csvData.categoricalColumns.length > 0) {
+      // Create a pie chart for category distribution
+      const catCol = csvData.categoricalColumns[0].name;
+      
+      // Count occurrences of each category
+      const categories = [...new Set(csvData.rows.map(row => row[catCol]))];
+      const data = categories.map(cat => {
+        const count = csvData.rows.filter(row => row[catCol] === cat).length;
+        return {
+          name: cat,
+          value: count
+        };
+      });
+      
+      visualizations.push({
+        id: `streamlit-viz-${i}`,
+        title: `${catCol} Distribution`,
+        description: `Pie chart showing the distribution of ${catCol}`,
+        type: vizType.type,
+        metadata: {
+          data: data
+        }
+      });
+    }
   }
+  
+  return visualizations;
 }
