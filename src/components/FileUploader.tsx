@@ -7,9 +7,10 @@ import { Upload, FileSpreadsheet, Table as TableIcon, ChevronDown, ChevronUp } f
 import { toast } from '@/components/ui/use-toast';
 import { parse } from 'papaparse';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { uploadCsvFile } from '@/services/processMiningService';
 
 interface FileUploaderProps {
-  onFileUpload: (fileName: string, parsedData: any[], columns: string[]) => void;
+  onFileUpload: (fileName: string, parsedData: any[], columns: string[], fileId?: string) => void;
   onClose: () => void;
 }
 
@@ -138,12 +139,35 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onFileUpload, onClose }) =>
     setIsUploading(true);
 
     try {
-      // Use the parsed data
-      onFileUpload(file.name, parseResults.data, parseResults.columns);
+      // First, try to upload to the backend for process mining
+      const uploadResult = await uploadCsvFile(file);
+      
+      if (uploadResult && uploadResult.success) {
+        // If backend upload was successful, pass both the parsed data and the fileId
+        onFileUpload(
+          file.name, 
+          parseResults.data, 
+          parseResults.columns, 
+          uploadResult.file_id
+        );
+        
+        toast({
+          title: "Processing Complete",
+          description: `File "${file.name}" was processed through the process mining pipeline`,
+        });
+      } else {
+        // If backend upload failed, just use the parsed data
+        console.warn("Backend upload failed, using client-side parsing only");
+        onFileUpload(file.name, parseResults.data, parseResults.columns);
+      }
     } catch (error) {
+      console.error("Error during upload:", error);
+      // Fall back to client-side parsing
+      onFileUpload(file.name, parseResults.data, parseResults.columns);
+      
       toast({
-        title: "Upload failed",
-        description: "There was a problem processing your file.",
+        title: "Backend processing failed",
+        description: "Using client-side analysis only. Some advanced features may be unavailable.",
         variant: "destructive",
       });
     } finally {
@@ -287,7 +311,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onFileUpload, onClose }) =>
           disabled={!file || !parseResults || isUploading}
           className="bg-genui-primary hover:bg-genui-secondary"
         >
-          {isUploading ? 'Processing...' : 'Upload & Prepare for Visualization'}
+          {isUploading ? 'Processing...' : 'Upload & Process with Backend Analysis'}
         </Button>
       </CardFooter>
     </Card>

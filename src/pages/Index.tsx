@@ -11,6 +11,7 @@ import { toast } from '@/components/ui/use-toast';
 import { processQuery } from '@/services/api';
 import { processChartQuery } from '@/services/chart-processing';
 import { generateChartData } from '@/services/csvProcessingService';
+import { getProcessModel, getOutliers, getProcessSummary, generateVisualizationsFromProcessData } from '@/services/processMiningService';
 
 const Index = () => {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -22,6 +23,7 @@ const Index = () => {
   const [csvData, setCsvData] = useState<any[]>([]);
   const [csvColumns, setCsvColumns] = useState<string[]>([]);
   const [showVisualizer, setShowVisualizer] = useState(false);
+  const [processingFileId, setProcessingFileId] = useState<string | null>(null);
   
   // Get the active session or create a new one
   const activeSession = sessions.find((s) => s.id === activeSessionId) || {
@@ -36,8 +38,8 @@ const Index = () => {
     const checkBackend = async () => {
       try {
         // Try to make a simple query to the backend
-        const response = await processQuery("ping");
-        setIsBackendAvailable(!!response.data);
+        const response = await fetch('http://localhost:5000/api/metadata/test');
+        setIsBackendAvailable(response.status !== 404);
       } catch (error) {
         console.error("Backend connection failed:", error);
         setIsBackendAvailable(false);
@@ -96,6 +98,7 @@ const Index = () => {
     setCsvData([]);
     setCsvColumns([]);
     setShowVisualizer(false);
+    setProcessingFileId(null); // Clear processing file ID
   };
   
   const handleSelectSession = (sessionId: string) => {
@@ -103,11 +106,17 @@ const Index = () => {
     setIsSidebarOpen(false); // Close sidebar on mobile when selecting a session
   };
   
-  const handleFileUpload = (fileName: string, parsedData: any[], columns: string[]) => {
+  const handleFileUpload = (fileName: string, parsedData: any[], columns: string[], fileId?: string) => {
     setUploadedFile(fileName);
     setCsvData(parsedData);
     setCsvColumns(columns);
     setShowVisualizer(true);
+    
+    if (fileId) {
+      setProcessingFileId(fileId);
+    } else {
+      setProcessingFileId(null);
+    }
     
     // Add system message about file upload
     if (activeSessionId) {
@@ -118,6 +127,7 @@ const Index = () => {
 - ${parsedData.length} rows
 - ${columns.length} columns
 - Columns: ${columns.join(', ')}
+${fileId ? '\nBackend process mining pipeline has been activated.' : ''}
 
 The data is now ready for visualization. You can request specific visualizations by name or view the automatic visualizations in the CSV analyzer above.`,
         timestamp: new Date()
@@ -197,88 +207,55 @@ The data is now ready for visualization. You can request specific visualizations
       let responseText: string;
       let matchedWidgets: any[] = [];
       
-      // If there's an uploaded file and the message is likely a visualization request
-      // Check if it's a simple title request for CSV visualization
-      if (uploadedFile && csvData.length > 0 && message.trim().length > 0) {
-        console.log("Checking for CSV-based visualization request");
+      // If there's an uploaded file with a processing fileId
+      if (uploadedFile && processingFileId) {
+        console.log("Using process mining pipeline data");
         
-        // If the message appears to be just a chart title request
-        const csvChart = generateChartFromCSV(message);
-        
-        if (csvChart) {
-          responseText = `Here's the "${csvChart.title}" visualization based on your uploaded CSV data.`;
-          matchedWidgets = [csvChart];
-          console.log(`Generated CSV visualization: ${csvChart.title}`, csvChart);
-        }
-        // If no CSV chart was generated, continue with normal flow
-        else {
-          // First, try to interpret the message as a visualization request using the semantic matching
-          const chartWidget = processChartQuery(message);
+        try {
+          // Fetch process mining data
+          const [processModel, outliers, processSummary] = await Promise.all([
+            getProcessModel(processingFileId),
+            getOutliers(processingFileId),
+            getProcessSummary(processingFileId)
+          ]);
           
-          if (chartWidget) {
-            // Found a matching visualization
-            responseText = `Here's the "${chartWidget.title}" visualization: ${chartWidget.description || ''}`;
-            matchedWidgets = [chartWidget];
-            console.log(`Matched visualization: ${chartWidget.title}`);
-          } 
-          // If no chart match, try backend or fallback
-          else if (isBackendAvailable) {
-            const apiResponse = await processQuery(message);
+          if (processModel && outliers && processSummary) {
+            // Generate visualizations from process mining data
+            const processVisualizations = generateVisualizationsFromProcessData(
+              processModel,
+              outliers,
+              processSummary
+            );
             
-            if (apiResponse.data) {
-              // Use the backend response
-              responseText = apiResponse.data.text;
-              matchedWidgets = apiResponse.data.widgets || [];
-              console.log("Backend response:", apiResponse.data);
-            } else {
-              // Fall back to client-side processing
-              const fallbackResponse = await processFallbackQuery(message);
-              responseText = fallbackResponse.text;
-              matchedWidgets = fallbackResponse.widgets;
-            }
+            responseText = `Here are the process mining visualizations based on your uploaded data: ${message}.`;
+            matchedWidgets = processVisualizations;
           } else {
-            // Use client-side processing if backend isn't available
-            const fallbackResponse = await processFallbackQuery(message);
-            responseText = fallbackResponse.text;
-            matchedWidgets = fallbackResponse.widgets;
+            // Fall back to regular CSV processing
+            const response = await useCsvBasedVisualization(message);
+            responseText = response.text;
+            matchedWidgets = response.widgets;
           }
+        } catch (error) {
+          console.error("Error fetching process mining data:", error);
+          // Fall back to regular CSV processing
+          const response = await useCsvBasedVisualization(message);
+          responseText = response.text;
+          matchedWidgets = response.widgets;
         }
-      } else {
-        // Regular flow for non-CSV requests
-        const queryWithContext = uploadedFile 
-          ? `Analysis for uploaded file "${uploadedFile}": ${message}`
-          : message;
-        
-        // First, try to interpret the message as a visualization request
-        const chartWidget = processChartQuery(queryWithContext);
-        
-        if (chartWidget) {
-          // Found a matching visualization
-          responseText = `Here's the "${chartWidget.title}" visualization: ${chartWidget.description || ''}`;
-          matchedWidgets = [chartWidget];
-          console.log(`Matched visualization: ${chartWidget.title}`);
-        } 
-        // If no chart match, try backend or fallback
-        else if (isBackendAvailable) {
-          const apiResponse = await processQuery(queryWithContext);
-          
-          if (apiResponse.data) {
-            // Use the backend response
-            responseText = apiResponse.data.text;
-            matchedWidgets = apiResponse.data.widgets || [];
-            console.log("Backend response:", apiResponse.data);
-          } else {
-            // Fall back to client-side processing
-            const fallbackResponse = await processFallbackQuery(queryWithContext);
-            responseText = fallbackResponse.text;
-            matchedWidgets = fallbackResponse.widgets;
-          }
-        } else {
-          // Use client-side processing if backend isn't available
-          const fallbackResponse = await processFallbackQuery(queryWithContext);
-          responseText = fallbackResponse.text;
-          matchedWidgets = fallbackResponse.widgets;
-        }
+      } 
+      // If there's an uploaded file but no processing fileId
+      else if (uploadedFile && csvData.length > 0) {
+        console.log("Using regular CSV data");
+        const response = await useCsvBasedVisualization(message);
+        responseText = response.text;
+        matchedWidgets = response.widgets;
+      }
+      // Standard query without CSV data
+      else {
+        console.log("No CSV data, using regular query");
+        const response = await processRegularQuery(message);
+        responseText = response.text;
+        matchedWidgets = response.widgets;
       }
       
       // Create AI response message
@@ -313,12 +290,106 @@ The data is now ready for visualization. You can request specific visualizations
     }
   };
   
+  // Helper function for CSV-based visualization
+  const useCsvBasedVisualization = async (message: string): Promise<{text: string, widgets: any[]}> => {
+    // Check if it's a simple title request for CSV visualization
+    const csvChart = generateChartData(csvData, csvColumns, getChartTypeFromMessage(message));
+    
+    if (csvChart) {
+      return {
+        text: `Here's the "${csvChart.title}" visualization based on your uploaded CSV data.`,
+        widgets: [csvChart]
+      };
+    }
+    
+    // If no CSV chart was generated, continue with normal flow
+    const chartWidget = processChartQuery(message);
+    
+    if (chartWidget) {
+      // Found a matching visualization
+      return {
+        text: `Here's the "${chartWidget.title}" visualization: ${chartWidget.description || ''}`,
+        widgets: [chartWidget]
+      };
+    }
+    
+    // If no match, try backend or fallback
+    if (isBackendAvailable) {
+      try {
+        const apiResponse = await processQuery(message);
+        
+        if (apiResponse.data) {
+          return {
+            text: apiResponse.data.text,
+            widgets: apiResponse.data.widgets || []
+          };
+        }
+      } catch (error) {
+        console.error("API error:", error);
+      }
+    }
+    
+    // Fall back to client-side processing
+    return processFallbackQuery(message);
+  };
+  
+  // Helper function to determine chart type from message
+  const getChartTypeFromMessage = (message: string): string => {
+    const lowerMsg = message.toLowerCase();
+    
+    if (lowerMsg.includes('scatter') || lowerMsg.includes('plot')) {
+      return 'scatter';
+    } else if (lowerMsg.includes('bar') || lowerMsg.includes('column')) {
+      return 'bar';
+    } else if (lowerMsg.includes('line') || lowerMsg.includes('trend')) {
+      return 'line';
+    } else if (lowerMsg.includes('pie') || lowerMsg.includes('distribution')) {
+      return 'pie';
+    } else if (lowerMsg.includes('table')) {
+      return 'data-table';
+    }
+    
+    return 'bar'; // Default
+  };
+  
+  // Helper function for regular queries (no CSV data)
+  const processRegularQuery = async (message: string): Promise<{text: string, widgets: any[]}> => {
+    // First, try to interpret the message as a visualization request
+    const chartWidget = processChartQuery(message);
+    
+    if (chartWidget) {
+      return {
+        text: `Here's the "${chartWidget.title}" visualization: ${chartWidget.description || ''}`,
+        widgets: [chartWidget]
+      };
+    }
+    
+    // If no chart match, try backend or fallback
+    if (isBackendAvailable) {
+      try {
+        const apiResponse = await processQuery(message);
+        
+        if (apiResponse.data) {
+          return {
+            text: apiResponse.data.text,
+            widgets: apiResponse.data.widgets || []
+          };
+        }
+      } catch (error) {
+        console.error("API error:", error);
+      }
+    }
+    
+    // Fall back to client-side processing
+    return processFallbackQuery(message);
+  };
+  
   // Fallback query processing for when the backend is unavailable
   const processFallbackQuery = async (query: string): Promise<{text: string, widgets: any[]}> => {
     // Wait for a short delay to simulate processing
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 500));
     
-    // Try one more time with full text-based matching using processChartQuery
+    // Try one more time with full text-based matching
     const chartWidget = processChartQuery(query);
     if (chartWidget) {
       return {
@@ -327,50 +398,41 @@ The data is now ready for visualization. You can request specific visualizations
       };
     }
     
-    // Find widgets based on the query using older method as final fallback
+    // Find widgets based on the query
     const matchedWidgets = findWidgetsByQuery(query);
     
     // Generate response text based on matched widgets
-    let responseText: string;
-    
     if (matchedWidgets.length > 0) {
       // If we found widgets based on the query, respond with contextual information
       if (matchedWidgets.length === 1) {
-        responseText = `Here's the "${matchedWidgets[0].title}" visualization: ${matchedWidgets[0].description || ''}`;
+        return {
+          text: `Here's the "${matchedWidgets[0].title}" visualization: ${matchedWidgets[0].description || ''}`,
+          widgets: matchedWidgets
+        };
       } else {
-        responseText = `Here are ${matchedWidgets.length} visualizations related to your query:`;
+        return {
+          text: `Here are ${matchedWidgets.length} visualizations related to your query:`,
+          widgets: matchedWidgets
+        };
       }
-      
-      return { text: responseText, widgets: matchedWidgets };
     } else if (uploadedFile) {
       // Special response for uploaded files when no visualization matches
-      responseText = `I've analyzed the uploaded file "${uploadedFile}", but couldn't find a specific visualization matching your query. Try asking for specific visualizations or specify the chart type such as:
-      
+      return {
+        text: `I've analyzed the uploaded file "${uploadedFile}", but couldn't find a specific visualization matching your query. Try asking for specific visualizations or specify the chart type such as:
+        
 - "Bar chart of [column name]"
 - "Scatter plot of [column X] vs [column Y]"
 - "Line chart showing [column name] trend"
 - "Pie chart distribution of [column name]"
-- "Data table of the CSV content"`;
-      
-      return { text: responseText, widgets: [] };
+- "Data table of the CSV content"`,
+        widgets: []
+      };
     } else {
-      responseText = "I couldn't find a specific visualization matching your query. Try asking for specific visualizations like:";
-      
-      // List available visualization types as examples
-      const visualizationExamples = [
-        "Object Type Interactions",
-        "Resource Summary Table",
-        "Failure Pattern Analysis",
-        "Resource Performance",
-        "Activity Duration Outliers",
-        "Event Distribution by Case Type",
-        "Case Complexity Analysis"
-      ];
-      
-      // Add the examples to the response
-      responseText += visualizationExamples.map(example => `\n- "Show me ${example}"`).join('');
-      
-      return { text: responseText, widgets: [] };
+      // Generic response when no matches and no CSV
+      return {
+        text: "I couldn't find a specific visualization matching your query. Try asking for specific visualizations like process models, activity frequency, or outlier analysis.",
+        widgets: []
+      };
     }
   };
   
@@ -398,6 +460,7 @@ The data is now ready for visualization. You can request specific visualizations
               fileName={uploadedFile}
               data={csvData}
               columns={csvColumns}
+              fileId={processingFileId || undefined}
             />
           </div>
         )}

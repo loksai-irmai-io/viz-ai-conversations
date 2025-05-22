@@ -14,19 +14,33 @@ import {
   TableHeader, TableRow 
 } from '@/components/ui/table';
 import WidgetRenderer from './widgets/WidgetRenderer';
-import { generateDataSummary, generateChartData } from '@/services/csvProcessingService';
+import { generateDataSummary } from '@/services/csvProcessingService';
+import { 
+  getProcessModel, 
+  getOutliers, 
+  getProcessSummary,
+  generateVisualizationsFromProcessData,
+  ProcessModel,
+  Outlier,
+  ProcessSummary
+} from '@/services/processMiningService';
+import { toast } from '@/components/ui/use-toast';
 
 interface CsvVisualizerProps {
   fileName: string;
   data: any[];
   columns: string[];
+  fileId?: string;
 }
 
-const CsvVisualizer: React.FC<CsvVisualizerProps> = ({ fileName, data, columns }) => {
+const CsvVisualizer: React.FC<CsvVisualizerProps> = ({ fileName, data, columns, fileId }) => {
   const [activeTab, setActiveTab] = useState('summary');
   const [summaryData, setSummaryData] = useState<any>(null);
   const [charts, setCharts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [processData, setProcessData] = useState<ProcessModel | null>(null);
+  const [outliers, setOutliers] = useState<Outlier[] | null>(null);
+  const [processSummary, setProcessSummary] = useState<ProcessSummary | null>(null);
   
   // Process data on component mount
   useEffect(() => {
@@ -34,31 +48,83 @@ const CsvVisualizer: React.FC<CsvVisualizerProps> = ({ fileName, data, columns }
       setIsLoading(true);
       
       try {
-        // Generate summary statistics
+        // Generate summary statistics for the CSV data
         const summary = generateDataSummary(data, columns);
         setSummaryData(summary);
         
-        // Generate various chart types
+        if (fileId) {
+          // If we have a fileId, fetch process mining data from the backend
+          const [processModel, outlierData, processSummaryData] = await Promise.all([
+            getProcessModel(fileId),
+            getOutliers(fileId),
+            getProcessSummary(fileId)
+          ]);
+          
+          setProcessData(processModel);
+          setOutliers(outlierData);
+          setProcessSummary(processSummaryData);
+          
+          if (processModel && outlierData && processSummaryData) {
+            // Generate visualizations based on process mining data
+            const processVisualizations = generateVisualizationsFromProcessData(
+              processModel, 
+              outlierData, 
+              processSummaryData
+            );
+            
+            // Add them to the charts
+            setCharts(processVisualizations);
+            
+            toast({
+              title: "Process Analysis Complete",
+              description: `Generated ${processVisualizations.length} visualizations from process data`,
+            });
+          } else {
+            // If we couldn't get process data, fall back to basic CSV visualizations
+            fallbackToBasicVisualizations();
+          }
+        } else {
+          // If no fileId, use basic CSV visualizations
+          fallbackToBasicVisualizations();
+        }
+      } catch (error) {
+        console.error("Error processing data:", error);
+        toast({
+          title: "Error",
+          description: "Failed to process data. Using basic visualizations.",
+          variant: "destructive"
+        });
+        
+        // Fall back to basic visualizations
+        fallbackToBasicVisualizations();
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    // Function to fall back to basic CSV visualizations when process data isn't available
+    const fallbackToBasicVisualizations = () => {
+      import('@/services/csvProcessingService').then(({ generateChartData }) => {
+        // Generate various chart types from CSV data
         const chartTypes = ['bar', 'line', 'scatter', 'pie', 'data-table'];
         const generatedCharts = chartTypes
           .map(type => generateChartData(data, columns, type))
           .filter(chart => chart !== null);
           
         setCharts(generatedCharts as any[]);
-      } catch (error) {
-        console.error("Error processing CSV data:", error);
-      } finally {
-        setIsLoading(false);
-      }
+      });
     };
     
     processCsvData();
-  }, [data, columns]);
+  }, [data, columns, fileId]);
   
   // Download processed data as JSON
   const downloadJson = () => {
     const jsonData = JSON.stringify({
       summary: summaryData,
+      processData: processData,
+      outliers: outliers,
+      processSummary: processSummary,
       charts: charts
     }, null, 2);
     
@@ -95,6 +161,7 @@ const CsvVisualizer: React.FC<CsvVisualizerProps> = ({ fileName, data, columns }
             <CardTitle>CSV Analysis: {fileName}</CardTitle>
             <CardDescription>
               {data.length} rows, {columns.length} columns
+              {fileId && ' - Process Analysis Complete'}
             </CardDescription>
           </div>
           <Button variant="outline" size="sm" onClick={downloadJson}>
@@ -126,6 +193,50 @@ const CsvVisualizer: React.FC<CsvVisualizerProps> = ({ fileName, data, columns }
           <TabsContent value="summary">
             {summaryData && (
               <div className="space-y-6">
+                {/* Process Mining Stats (if available) */}
+                {processData && processSummary && (
+                  <div>
+                    <h3 className="text-lg font-medium mb-3">Process Mining Results</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <h4 className="font-medium mb-2">Process Metrics</h4>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span>Total Cases:</span>
+                            <span className="font-mono">{processData.statistics.totalCases}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Total Events:</span>
+                            <span className="font-mono">{processData.statistics.totalEvents}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Activity Types:</span>
+                            <span className="font-mono">{Object.keys(processData.statistics.activities).length}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <h4 className="font-medium mb-2">Activity Analysis</h4>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span>Most Frequent:</span>
+                            <span className="font-mono">{processSummary.mostFrequentActivity || 'N/A'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Least Frequent:</span>
+                            <span className="font-mono">{processSummary.leastFrequentActivity || 'N/A'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Outliers Detected:</span>
+                            <span className="font-mono">{outliers?.filter(o => o.is_outlier).length || 0}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 {/* Numerical Columns */}
                 <div>
                   <h3 className="text-lg font-medium mb-3">Numerical Columns</h3>
