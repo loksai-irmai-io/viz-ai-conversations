@@ -1,4 +1,3 @@
-
 import React, { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -90,8 +89,11 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onFileUpload, onClose }) =>
     columns.forEach(col => {
       // Check if column contains numerical values
       const numericValues = data
-        .map(row => parseFloat(row[col]))
-        .filter(val => !isNaN(val));
+        .map(row => {
+          const value = parseFloat(row[col]);
+          return !isNaN(value) ? value : null;
+        })
+        .filter(val => val !== null) as number[];
       
       if (numericValues.length > 0) {
         // Calculate basic statistics
@@ -114,7 +116,13 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onFileUpload, onClose }) =>
         };
       } else {
         // For non-numeric columns, just count unique values
-        const uniqueValues = new Set(data.map(row => row[col]));
+        const uniqueValues = new Set();
+        data.forEach(row => {
+          if (row[col] !== undefined && row[col] !== null) {
+            uniqueValues.add(row[col]);
+          }
+        });
+        
         stats[col] = {
           count: data.length,
           unique: uniqueValues.size
