@@ -39,6 +39,29 @@ const ChartWidget: React.FC<ChartWidgetProps> = ({ widget }) => {
   const { metadata, type } = widget;
   
   const renderLineChart = () => {
+    // Check if data exists and is valid for rendering
+    if (!metadata?.data || !Array.isArray(metadata.data) || metadata.data.length === 0) {
+      return (
+        <div className="flex items-center justify-center h-[300px] bg-gray-50 rounded-md">
+          <p className="text-gray-500">No data available for line chart</p>
+        </div>
+      );
+    }
+    
+    // Get the first data point to check keys
+    const firstDataPoint = metadata.data[0];
+    // Get the first key for X axis
+    const xAxisKey = Object.keys(firstDataPoint)[0];
+    
+    // Only proceed if we have valid data points with keys
+    if (!xAxisKey) {
+      return (
+        <div className="flex items-center justify-center h-[300px] bg-gray-50 rounded-md">
+          <p className="text-gray-500">Invalid data format for line chart</p>
+        </div>
+      );
+    }
+    
     return (
       <ResponsiveContainer width="100%" height={300}>
         <LineChart
@@ -46,12 +69,12 @@ const ChartWidget: React.FC<ChartWidgetProps> = ({ widget }) => {
           margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
         >
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey={Object.keys(metadata.data[0])[0]} />
+          <XAxis dataKey={xAxisKey} />
           <YAxis />
           <Tooltip />
           <Legend />
-          {Object.keys(metadata.data[0])
-            .filter(key => key !== Object.keys(metadata.data[0])[0])
+          {Object.keys(firstDataPoint)
+            .filter(key => key !== xAxisKey)
             .map((key, index) => (
               <Line 
                 key={key}
@@ -67,6 +90,29 @@ const ChartWidget: React.FC<ChartWidgetProps> = ({ widget }) => {
   };
 
   const renderBarChart = () => {
+    // Check if data exists and is valid for rendering
+    if (!metadata?.data || !Array.isArray(metadata.data) || metadata.data.length === 0) {
+      return (
+        <div className="flex items-center justify-center h-[300px] bg-gray-50 rounded-md">
+          <p className="text-gray-500">No data available for bar chart</p>
+        </div>
+      );
+    }
+    
+    // Get the first data point to check keys
+    const firstDataPoint = metadata.data[0];
+    // Get the first key for X axis
+    const xAxisKey = Object.keys(firstDataPoint)[0];
+    
+    // Only proceed if we have valid data points with keys
+    if (!xAxisKey) {
+      return (
+        <div className="flex items-center justify-center h-[300px] bg-gray-50 rounded-md">
+          <p className="text-gray-500">Invalid data format for bar chart</p>
+        </div>
+      );
+    }
+    
     return (
       <ResponsiveContainer width="100%" height={300}>
         <BarChart
@@ -74,12 +120,12 @@ const ChartWidget: React.FC<ChartWidgetProps> = ({ widget }) => {
           margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
         >
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey={Object.keys(metadata.data[0])[0]} />
+          <XAxis dataKey={xAxisKey} />
           <YAxis />
           <Tooltip />
           <Legend />
-          {Object.keys(metadata.data[0])
-            .filter(key => key !== Object.keys(metadata.data[0])[0])
+          {Object.keys(firstDataPoint)
+            .filter(key => key !== xAxisKey)
             .map((key, index) => (
               <Bar
                 key={key}
@@ -496,7 +542,9 @@ const ChartWidget: React.FC<ChartWidgetProps> = ({ widget }) => {
   const renderScatterChart = () => {
     // Validate that we have data for the scatter plot
     if (!metadata?.data || !Array.isArray(metadata.data) || metadata.data.length === 0) {
-      return <div className="text-center p-4 text-gray-500">No scatter plot data available</div>;
+      return <div className="flex items-center justify-center h-[300px] bg-gray-50 rounded-md">
+        <p className="text-gray-500">No data available for scatter plot</p>
+      </div>;
     }
     
     console.log("Rendering scatter chart with data:", metadata.data);
@@ -604,6 +652,15 @@ const ChartWidget: React.FC<ChartWidgetProps> = ({ widget }) => {
   };
 
   const renderChart = () => {
+    // First check if metadata is undefined
+    if (!metadata) {
+      return (
+        <div className="p-4 bg-gray-100 rounded-md">
+          <p className="text-center text-gray-500">No data available for visualization</p>
+        </div>
+      );
+    }
+    
     switch (type) {
       case 'line-chart':
         return renderLineChart();
