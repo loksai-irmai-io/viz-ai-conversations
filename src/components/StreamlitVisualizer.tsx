@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle 
@@ -7,12 +6,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { 
   BarChart, RefreshCw, Download, Clock, LineChart, 
-  ExternalLink, ChartBar, Eye
+  ExternalLink, ChartBar, Eye, Database
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/components/ui/use-toast';
 import WidgetRenderer from './widgets/WidgetRenderer';
 import { fetchStreamlitVisualizations, cancelStreamlitRequest } from '@/services/streamlitService';
+import { fetchStagingCharts, StagingChart } from '@/services/stagingChartsService';
 
 interface StreamlitVisualizerProps {
   requestId?: string;
@@ -33,6 +33,8 @@ const StreamlitVisualizer: React.FC<StreamlitVisualizerProps> = ({
   const [processingTime, setProcessingTime] = useState(0);
   const [visualizations, setVisualizations] = useState<any[]>([]);
   const [streamlitImages, setStreamlitImages] = useState<string[]>([]);
+  const [stagingCharts, setStagingCharts] = useState<StagingChart[]>([]);
+  const [loadingStagingCharts, setLoadingStagingCharts] = useState(false);
   const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState<number | null>(null);
   
   // Start polling when component mounts with a requestId
@@ -155,6 +157,41 @@ const StreamlitVisualizer: React.FC<StreamlitVisualizerProps> = ({
     }
   };
   
+  // Load staging charts
+  const handleLoadStagingCharts = async () => {
+    setLoadingStagingCharts(true);
+    
+    try {
+      const response = await fetchStagingCharts();
+      
+      if (response.status === 'success') {
+        setStagingCharts(response.charts);
+        setActiveTab('staging-charts');
+        
+        toast({
+          title: "Charts Loaded",
+          description: `Successfully loaded ${response.charts.length} charts from staging.`,
+        });
+      } else {
+        toast({
+          title: "Failed to Load Charts",
+          description: response.message || "Could not connect to staging charts API.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Error loading staging charts:", error);
+      
+      toast({
+        title: "Connection Error",
+        description: "Failed to connect to the staging charts API at localhost:8000.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingStagingCharts(false);
+    }
+  };
+  
   // Format time remaining
   const formatTimeRemaining = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -169,6 +206,7 @@ const StreamlitVisualizer: React.FC<StreamlitVisualizerProps> = ({
       prompt,
       csvFileName,
       visualizations,
+      stagingCharts,
       timestamp: new Date().toISOString(),
     };
     
@@ -227,11 +265,24 @@ const StreamlitVisualizer: React.FC<StreamlitVisualizerProps> = ({
             </CardDescription>
           </div>
           <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleLoadStagingCharts}
+              disabled={loadingStagingCharts}
+            >
+              {loadingStagingCharts ? (
+                <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <Database className="h-4 w-4 mr-1" />
+              )}
+              Load Staging Charts
+            </Button>
             {isPolling ? (
               <Button variant="outline" size="sm" onClick={handleCancelRequest}>
                 Cancel Processing
               </Button>
-            ) : visualizations.length > 0 && (
+            ) : (visualizations.length > 0 || stagingCharts.length > 0) && (
               <Button variant="outline" size="sm" onClick={handleDownload}>
                 <Download className="h-4 w-4 mr-1" />
                 Export Results
@@ -256,10 +307,14 @@ const StreamlitVisualizer: React.FC<StreamlitVisualizerProps> = ({
       
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <div className="px-6">
-          <TabsList className="grid grid-cols-3">
+          <TabsList className="grid grid-cols-4">
             <TabsTrigger value="visualizations" className="flex items-center">
               <BarChart className="h-4 w-4 mr-1" />
               Visualizations
+            </TabsTrigger>
+            <TabsTrigger value="staging-charts" className="flex items-center">
+              <Database className="h-4 w-4 mr-1" />
+              Staging Charts
             </TabsTrigger>
             <TabsTrigger value="streamlit" className="flex items-center">
               <Eye className="h-4 w-4 mr-1" />
@@ -306,6 +361,40 @@ const StreamlitVisualizer: React.FC<StreamlitVisualizerProps> = ({
                     "We're analyzing your data and identifying the best visualizations based on your dataset's features." : 
                     "Try uploading a different file or entering a new prompt with more specific analysis requirements."}
                 </p>
+              </div>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="staging-charts">
+            {stagingCharts.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {stagingCharts.map((chart, index) => (
+                  <div key={chart.id || index}>
+                    <WidgetRenderer widget={chart} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Database className="h-16 w-16 text-muted-foreground mb-4" />
+                <p className="text-muted-foreground text-lg">
+                  No staging charts loaded
+                </p>
+                <p className="text-muted-foreground text-sm mt-2 text-center">
+                  Click "Load Staging Charts" to fetch visualizations from the staging API at localhost:8000/charts.
+                </p>
+                <Button 
+                  className="mt-4" 
+                  onClick={handleLoadStagingCharts}
+                  disabled={loadingStagingCharts}
+                >
+                  {loadingStagingCharts ? (
+                    <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                  ) : (
+                    <Database className="h-4 w-4 mr-1" />
+                  )}
+                  Load Staging Charts
+                </Button>
               </div>
             )}
           </TabsContent>
