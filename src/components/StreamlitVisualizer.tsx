@@ -11,6 +11,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/components/ui/use-toast';
 import WidgetRenderer from './widgets/WidgetRenderer';
+import StagingChartRenderer from './widgets/StagingChartRenderer';
 import { fetchStreamlitVisualizations, cancelStreamlitRequest } from '@/services/streamlitService';
 import { fetchStagingCharts, StagingChart } from '@/services/stagingChartsService';
 
@@ -162,9 +163,11 @@ const StreamlitVisualizer: React.FC<StreamlitVisualizerProps> = ({
     setLoadingStagingCharts(true);
     
     try {
+      console.log('Loading staging charts...');
       const response = await fetchStagingCharts();
       
       if (response.status === 'success') {
+        console.log('Staging charts loaded successfully:', response.charts);
         setStagingCharts(response.charts);
         setActiveTab('staging-charts');
         
@@ -173,6 +176,7 @@ const StreamlitVisualizer: React.FC<StreamlitVisualizerProps> = ({
           description: `Successfully loaded ${response.charts.length} charts from staging.`,
         });
       } else {
+        console.error('Failed to load staging charts:', response.message);
         toast({
           title: "Failed to Load Charts",
           description: response.message || "Could not connect to staging charts API.",
@@ -314,7 +318,7 @@ const StreamlitVisualizer: React.FC<StreamlitVisualizerProps> = ({
             </TabsTrigger>
             <TabsTrigger value="staging-charts" className="flex items-center">
               <Database className="h-4 w-4 mr-1" />
-              Staging Charts
+              Staging Charts ({stagingCharts.length})
             </TabsTrigger>
             <TabsTrigger value="streamlit" className="flex items-center">
               <Eye className="h-4 w-4 mr-1" />
@@ -370,7 +374,7 @@ const StreamlitVisualizer: React.FC<StreamlitVisualizerProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {stagingCharts.map((chart, index) => (
                   <div key={chart.id || index}>
-                    <WidgetRenderer widget={chart} />
+                    <StagingChartRenderer chart={chart} />
                   </div>
                 ))}
               </div>
