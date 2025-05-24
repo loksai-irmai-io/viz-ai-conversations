@@ -1,13 +1,14 @@
-
 export interface Widget {
   id: string;
   type: string;
   title: string;
   description: string;
-  module: 'outlier-analysis' | 'process-discovery' | 'controls-monitoring';
+  module: 'outlier-analysis' | 'process-discovery' | 'controls-monitoring' | 'staging';
   image: string;
   keywords: string[];
   metadata: Record<string, any>;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export const mockWidgets: Widget[] = [
